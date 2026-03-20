@@ -33,6 +33,7 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      touch-action: none;
       font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
       color: var(--text);
       background:
@@ -74,6 +75,7 @@
       background: #0b121d;
       position: relative;
       z-index: 1;
+      touch-action: none;
     }
 
     #hud {
@@ -458,6 +460,131 @@
       filter: brightness(1.04);
     }
 
+    #touchUi {
+      position: fixed;
+      inset: 0;
+      z-index: 6;
+      pointer-events: none;
+      display: none;
+    }
+
+    body.touch-enabled #touchUi {
+      display: block;
+    }
+
+    #touchLookZone {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 62vw;
+      height: 100%;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    #touchMovePad {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      width: min(34vw, 154px);
+      height: min(34vw, 154px);
+      border-radius: 50%;
+      border: 1px solid rgba(150, 228, 255, 0.34);
+      background: radial-gradient(circle at 35% 35%, rgba(112, 216, 255, 0.26), rgba(8, 21, 33, 0.64));
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+      display: grid;
+      place-items: center;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    #touchMovePad::before {
+      content: "";
+      width: 66%;
+      height: 66%;
+      border-radius: inherit;
+      border: 1px dashed rgba(173, 227, 248, 0.28);
+    }
+
+    #touchStick {
+      position: absolute;
+      width: 42%;
+      height: 42%;
+      border-radius: 50%;
+      border: 1px solid rgba(183, 239, 255, 0.46);
+      background: radial-gradient(circle at 30% 30%, rgba(165, 255, 226, 0.94), rgba(96, 181, 255, 0.76));
+      box-shadow: 0 8px 20px rgba(90, 184, 255, 0.34);
+      transform: translate(0, 0);
+      transition: transform 0.06s linear, filter 0.12s ease;
+      will-change: transform;
+    }
+
+    #touchMovePad.active #touchStick {
+      filter: brightness(1.08);
+    }
+
+    #touchActions {
+      position: absolute;
+      right: 14px;
+      bottom: 14px;
+      width: min(44vw, 210px);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "reload jump"
+        "weapon crouch"
+        "fire fire";
+      gap: 9px;
+      pointer-events: none;
+    }
+
+    .touchBtn {
+      pointer-events: auto;
+      touch-action: none;
+      border: 1px solid rgba(180, 230, 249, 0.36);
+      background: linear-gradient(160deg, rgba(21, 45, 69, 0.8), rgba(9, 22, 36, 0.82));
+      color: #e7f4ff;
+      border-radius: 13px;
+      font-family: inherit;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      font-size: 12px;
+      min-height: 44px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+      text-transform: uppercase;
+      outline: none;
+    }
+
+    .touchBtn:active,
+    .touchBtn.active {
+      filter: brightness(1.22);
+      border-color: rgba(186, 244, 235, 0.76);
+    }
+
+    #touchReloadBtn {
+      grid-area: reload;
+    }
+
+    #touchJumpBtn {
+      grid-area: jump;
+    }
+
+    #touchWeaponBtn {
+      grid-area: weapon;
+    }
+
+    #touchCrouchBtn {
+      grid-area: crouch;
+    }
+
+    #touchFireBtn {
+      grid-area: fire;
+      min-height: 72px;
+      border-radius: 18px;
+      font-size: 15px;
+      background: linear-gradient(160deg, rgba(26, 52, 78, 0.9), rgba(15, 30, 47, 0.88));
+    }
+
     @media (max-width: 900px) {
       #hud {
         width: min(320px, calc(100vw - 20px));
@@ -504,6 +631,14 @@
       #controls {
         font-size: 13px;
       }
+
+      #touchActions {
+        width: min(46vw, 200px);
+      }
+
+      #touchFireBtn {
+        min-height: 66px;
+      }
     }
 
     @media (max-width: 540px) {
@@ -519,6 +654,27 @@
         left: 8px;
         right: 8px;
         width: auto;
+      }
+
+      #touchMovePad {
+        left: 10px;
+        bottom: 10px;
+      }
+
+      #touchActions {
+        right: 10px;
+        bottom: 10px;
+        width: min(50vw, 188px);
+      }
+    }
+
+    @media (pointer: coarse) {
+      #hud {
+        max-width: min(290px, calc(100vw - 12px));
+      }
+
+      #feed {
+        bottom: 188px;
       }
     }
   </style>
@@ -569,6 +725,20 @@
 
   <div id="feed"></div>
 
+  <div id="touchUi" aria-hidden="true">
+    <div id="touchLookZone"></div>
+    <div id="touchMovePad">
+      <div id="touchStick"></div>
+    </div>
+    <div id="touchActions">
+      <button id="touchReloadBtn" class="touchBtn" type="button">Reload</button>
+      <button id="touchJumpBtn" class="touchBtn" type="button">Jump</button>
+      <button id="touchWeaponBtn" class="touchBtn" type="button">Switch</button>
+      <button id="touchCrouchBtn" class="touchBtn" type="button">Crouch</button>
+      <button id="touchFireBtn" class="touchBtn" type="button">Fire</button>
+    </div>
+  </div>
+
   <div id="overlay">
     <div class="card">
       <h1 id="title">BATTLE ROYALE 3D LITE</h1>
@@ -586,6 +756,7 @@
         <div><strong>Sprint:</strong> Shift</div>
         <div><strong>Turn:</strong> Mouse or Arrow Left/Right</div>
         <div><strong>Weapons:</strong> 1=Pistol, 2=Shotgun, 3=Sniper, or Mouse Wheel</div>
+        <div><strong>Mobile:</strong> Left joystick move, right side drag look, buttons on right to fire/jump/crouch/reload/switch</div>
         <div><strong>Mute:</strong> M key or HUD button</div>
         <div><strong>Loot:</strong> Walk into drops (green = heal, cyan = boost)</div>
       </div>
@@ -605,6 +776,15 @@
     const statusEl = document.getElementById("status");
     const feedEl = document.getElementById("feed");
     const hud = document.getElementById("hud");
+    const touchUi = document.getElementById("touchUi");
+    const touchMovePad = document.getElementById("touchMovePad");
+    const touchStick = document.getElementById("touchStick");
+    const touchLookZone = document.getElementById("touchLookZone");
+    const touchFireBtn = document.getElementById("touchFireBtn");
+    const touchJumpBtn = document.getElementById("touchJumpBtn");
+    const touchCrouchBtn = document.getElementById("touchCrouchBtn");
+    const touchReloadBtn = document.getElementById("touchReloadBtn");
+    const touchWeaponBtn = document.getElementById("touchWeaponBtn");
 
     const hpValue = document.getElementById("hpValue");
     const hpFill = document.getElementById("hpFill");
@@ -692,6 +872,21 @@
     const keys = Object.create(null);
     let mouseDown = false;
     let jumpQueued = false;
+    const touchInput = {
+      enabled: false,
+      moveId: null,
+      lookId: null,
+      fireId: null,
+      crouchId: null,
+      moveX: 0,
+      moveY: 0,
+      sprint: false,
+      shooting: false,
+      crouching: false,
+      lookDX: 0,
+      lookLastX: 0,
+      lookLastY: 0,
+    };
 
     let game = null;
     let lastTime = performance.now();
@@ -725,6 +920,138 @@
     function dist(a, b) {
       return Math.hypot(a.x - b.x, a.y - b.y);
     }
+
+    function addTextureGrain(tctx, size, strength = 18) {
+      const image = tctx.getImageData(0, 0, size, size);
+      const data = image.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const n = rand(-strength, strength);
+        data[i] = clamp(data[i] + n, 0, 255);
+        data[i + 1] = clamp(data[i + 1] + n, 0, 255);
+        data[i + 2] = clamp(data[i + 2] + n, 0, 255);
+      }
+      tctx.putImageData(image, 0, 0);
+    }
+
+    function createWallTextures() {
+      const size = 64;
+      const make = (drawFn) => {
+        const tex = document.createElement("canvas");
+        tex.width = size;
+        tex.height = size;
+        const tctx = tex.getContext("2d");
+        drawFn(tctx, size);
+        return tex;
+      };
+
+      const brick = make((tctx, s) => {
+        const g = tctx.createLinearGradient(0, 0, 0, s);
+        g.addColorStop(0, "#8e6b58");
+        g.addColorStop(1, "#4f3c33");
+        tctx.fillStyle = g;
+        tctx.fillRect(0, 0, s, s);
+
+        const rowH = 10;
+        tctx.strokeStyle = "rgba(36, 24, 20, 0.56)";
+        tctx.lineWidth = 2;
+        for (let y = 0; y <= s; y += rowH) {
+          tctx.beginPath();
+          tctx.moveTo(0, y + 0.5);
+          tctx.lineTo(s, y + 0.5);
+          tctx.stroke();
+        }
+
+        tctx.lineWidth = 1.6;
+        for (let y = 0; y < s; y += rowH) {
+          const offset = ((y / rowH) % 2) * (rowH / 2);
+          for (let x = -offset; x <= s; x += rowH) {
+            tctx.beginPath();
+            tctx.moveTo(x + 0.5, y);
+            tctx.lineTo(x + 0.5, y + rowH);
+            tctx.stroke();
+          }
+        }
+        addTextureGrain(tctx, s, 10);
+      });
+
+      const metal = make((tctx, s) => {
+        const g = tctx.createLinearGradient(0, 0, s, s);
+        g.addColorStop(0, "#6f8898");
+        g.addColorStop(0.55, "#4b6272");
+        g.addColorStop(1, "#354a59");
+        tctx.fillStyle = g;
+        tctx.fillRect(0, 0, s, s);
+
+        tctx.strokeStyle = "rgba(26, 40, 52, 0.7)";
+        tctx.lineWidth = 2;
+        for (let x = 0; x <= s; x += 16) {
+          tctx.beginPath();
+          tctx.moveTo(x + 0.5, 0);
+          tctx.lineTo(x + 0.5, s);
+          tctx.stroke();
+        }
+
+        tctx.strokeStyle = "rgba(207, 234, 255, 0.14)";
+        tctx.lineWidth = 1;
+        for (let y = 0; y <= s; y += 8) {
+          tctx.beginPath();
+          tctx.moveTo(0, y + 0.5);
+          tctx.lineTo(s, y + 0.5);
+          tctx.stroke();
+        }
+
+        for (let y = 6; y < s; y += 12) {
+          for (let x = 6; x < s; x += 16) {
+            tctx.beginPath();
+            tctx.arc(x, y, 1.3, 0, Math.PI * 2);
+            tctx.fillStyle = "rgba(227, 243, 255, 0.26)";
+            tctx.fill();
+          }
+        }
+        addTextureGrain(tctx, s, 12);
+      });
+
+      const moss = make((tctx, s) => {
+        const g = tctx.createLinearGradient(0, 0, 0, s);
+        g.addColorStop(0, "#5c7458");
+        g.addColorStop(0.45, "#476648");
+        g.addColorStop(1, "#2f4832");
+        tctx.fillStyle = g;
+        tctx.fillRect(0, 0, s, s);
+
+        tctx.strokeStyle = "rgba(25, 41, 28, 0.62)";
+        tctx.lineWidth = 2;
+        for (let y = 0; y <= s; y += 12) {
+          tctx.beginPath();
+          tctx.moveTo(0, y + 0.5);
+          tctx.lineTo(s, y + 0.5);
+          tctx.stroke();
+        }
+        for (let x = 0; x <= s; x += 12) {
+          tctx.beginPath();
+          tctx.moveTo(x + 0.5, 0);
+          tctx.lineTo(x + 0.5, s);
+          tctx.stroke();
+        }
+
+        for (let i = 0; i < 55; i++) {
+          const r = rand(1.1, 3.4);
+          tctx.beginPath();
+          tctx.arc(rand(0, s), rand(0, s), r, 0, Math.PI * 2);
+          tctx.fillStyle = `rgba(${randInt(80, 130)}, ${randInt(120, 186)}, ${randInt(66, 110)}, ${rand(0.14, 0.34)})`;
+          tctx.fill();
+        }
+        addTextureGrain(tctx, s, 14);
+      });
+
+      return {
+        1: brick,
+        2: metal,
+        3: moss,
+      };
+    }
+
+    const WALL_TEXTURES = createWallTextures();
 
     function nameOf(id) {
       if (id === "player") {
@@ -1170,6 +1497,228 @@
       setPlayerWeaponByIndex(baseIndex + direction);
     }
 
+    function sprintInputActive() {
+      return Boolean(keys.shift || (touchInput.enabled && touchInput.sprint));
+    }
+
+    function setTouchMoveVector(x, y) {
+      touchInput.moveX = clamp(x, -1, 1);
+      touchInput.moveY = clamp(y, -1, 1);
+      touchInput.sprint = Math.hypot(touchInput.moveX, touchInput.moveY) > 0.84;
+
+      if (touchMovePad) {
+        touchMovePad.classList.toggle("active", Math.abs(touchInput.moveX) > 0.01 || Math.abs(touchInput.moveY) > 0.01);
+      }
+      if (touchStick && touchMovePad) {
+        const range = Math.max(14, touchMovePad.clientWidth * 0.19);
+        touchStick.style.transform = `translate(${(touchInput.moveX * range).toFixed(1)}px, ${(touchInput.moveY * range).toFixed(1)}px)`;
+      }
+    }
+
+    function clearTouchState() {
+      touchInput.moveId = null;
+      touchInput.lookId = null;
+      touchInput.fireId = null;
+      touchInput.crouchId = null;
+      touchInput.lookDX = 0;
+      touchInput.lookLastX = 0;
+      touchInput.lookLastY = 0;
+      touchInput.shooting = false;
+      touchInput.crouching = false;
+      setTouchMoveVector(0, 0);
+      if (touchFireBtn) {
+        touchFireBtn.classList.remove("active");
+      }
+      if (touchCrouchBtn) {
+        touchCrouchBtn.classList.remove("active");
+      }
+    }
+
+    function pulseTouchButton(btn) {
+      if (!btn) {
+        return;
+      }
+      btn.classList.add("active");
+      window.setTimeout(() => {
+        btn.classList.remove("active");
+      }, 110);
+    }
+
+    function setupTouchControls() {
+      const touchCapable =
+        Boolean(window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+        (navigator.maxTouchPoints || 0) > 0 ||
+        "ontouchstart" in window;
+
+      touchInput.enabled = touchCapable;
+      document.body.classList.toggle("touch-enabled", touchInput.enabled);
+      if (!touchInput.enabled || !touchUi || !touchMovePad || !touchStick || !touchLookZone) {
+        clearTouchState();
+        return;
+      }
+
+      const getMoveVector = (clientX, clientY) => {
+        const rect = touchMovePad.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = clientX - cx;
+        const dy = clientY - cy;
+        const radius = Math.max(28, Math.min(rect.width, rect.height) * 0.34);
+        const d = Math.hypot(dx, dy);
+        if (d < 0.001) {
+          return { x: 0, y: 0 };
+        }
+        const m = Math.min(1, d / radius);
+        return {
+          x: (dx / d) * m,
+          y: (dy / d) * m,
+        };
+      };
+
+      const handleMoveDown = (e) => {
+        if (touchInput.moveId !== null) {
+          return;
+        }
+        touchInput.moveId = e.pointerId;
+        touchMovePad.setPointerCapture?.(e.pointerId);
+        const v = getMoveVector(e.clientX, e.clientY);
+        setTouchMoveVector(v.x, v.y);
+        e.preventDefault();
+      };
+
+      const handleMoveMove = (e) => {
+        if (e.pointerId !== touchInput.moveId) {
+          return;
+        }
+        const v = getMoveVector(e.clientX, e.clientY);
+        setTouchMoveVector(v.x, v.y);
+        e.preventDefault();
+      };
+
+      const handleMoveUp = (e) => {
+        if (e.pointerId !== touchInput.moveId) {
+          return;
+        }
+        touchInput.moveId = null;
+        setTouchMoveVector(0, 0);
+        e.preventDefault();
+      };
+
+      const handleLookDown = (e) => {
+        if (touchInput.lookId !== null) {
+          return;
+        }
+        touchInput.lookId = e.pointerId;
+        touchInput.lookLastX = e.clientX;
+        touchInput.lookLastY = e.clientY;
+        touchLookZone.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+      };
+
+      const handleLookMove = (e) => {
+        if (e.pointerId !== touchInput.lookId) {
+          return;
+        }
+        const dx = e.clientX - touchInput.lookLastX;
+        touchInput.lookLastX = e.clientX;
+        touchInput.lookLastY = e.clientY;
+        touchInput.lookDX += dx;
+        e.preventDefault();
+      };
+
+      const handleLookUp = (e) => {
+        if (e.pointerId !== touchInput.lookId) {
+          return;
+        }
+        touchInput.lookId = null;
+        touchInput.lookLastX = 0;
+        touchInput.lookLastY = 0;
+        e.preventDefault();
+      };
+
+      touchMovePad.addEventListener("pointerdown", handleMoveDown);
+      touchMovePad.addEventListener("pointermove", handleMoveMove);
+      touchMovePad.addEventListener("pointerup", handleMoveUp);
+      touchMovePad.addEventListener("pointercancel", handleMoveUp);
+
+      touchLookZone.addEventListener("pointerdown", handleLookDown);
+      touchLookZone.addEventListener("pointermove", handleLookMove);
+      touchLookZone.addEventListener("pointerup", handleLookUp);
+      touchLookZone.addEventListener("pointercancel", handleLookUp);
+
+      if (touchFireBtn) {
+        const fireDown = (e) => {
+          touchInput.fireId = e.pointerId;
+          touchInput.shooting = true;
+          touchFireBtn.classList.add("active");
+          touchFireBtn.setPointerCapture?.(e.pointerId);
+          e.preventDefault();
+        };
+        const fireUp = (e) => {
+          if (touchInput.fireId !== null && e.pointerId !== touchInput.fireId) {
+            return;
+          }
+          touchInput.fireId = null;
+          touchInput.shooting = false;
+          touchFireBtn.classList.remove("active");
+          e.preventDefault();
+        };
+        touchFireBtn.addEventListener("pointerdown", fireDown);
+        touchFireBtn.addEventListener("pointerup", fireUp);
+        touchFireBtn.addEventListener("pointercancel", fireUp);
+      }
+
+      if (touchCrouchBtn) {
+        const crouchDown = (e) => {
+          touchInput.crouchId = e.pointerId;
+          touchInput.crouching = true;
+          touchCrouchBtn.classList.add("active");
+          touchCrouchBtn.setPointerCapture?.(e.pointerId);
+          e.preventDefault();
+        };
+        const crouchUp = (e) => {
+          if (touchInput.crouchId !== null && e.pointerId !== touchInput.crouchId) {
+            return;
+          }
+          touchInput.crouchId = null;
+          touchInput.crouching = false;
+          touchCrouchBtn.classList.remove("active");
+          e.preventDefault();
+        };
+        touchCrouchBtn.addEventListener("pointerdown", crouchDown);
+        touchCrouchBtn.addEventListener("pointerup", crouchUp);
+        touchCrouchBtn.addEventListener("pointercancel", crouchUp);
+      }
+
+      if (touchJumpBtn) {
+        touchJumpBtn.addEventListener("pointerdown", (e) => {
+          jumpQueued = true;
+          pulseTouchButton(touchJumpBtn);
+          e.preventDefault();
+        });
+      }
+
+      if (touchReloadBtn) {
+        touchReloadBtn.addEventListener("pointerdown", (e) => {
+          startReload(true);
+          pulseTouchButton(touchReloadBtn);
+          e.preventDefault();
+        });
+      }
+
+      if (touchWeaponBtn) {
+        touchWeaponBtn.addEventListener("pointerdown", (e) => {
+          if (game && game.running && !game.player.dead) {
+            cyclePlayerWeapon(1);
+          }
+          pulseTouchButton(touchWeaponBtn);
+          e.preventDefault();
+        });
+      }
+
+      setTouchMoveVector(0, 0);
+    }
+
     function carveRect(map, x, y, w, h) {
       const x1 = clamp(Math.floor(x), 1, MAP_W - 2);
       const y1 = clamp(Math.floor(y), 1, MAP_H - 2);
@@ -1357,10 +1906,22 @@
         distOut = 0.0001;
       }
 
+      let wallX = 0.5;
+      if (hitType > 0) {
+        const hitX = ox + dirX * distOut;
+        const hitY = oy + dirY * distOut;
+        wallX = side === 0 ? hitY - Math.floor(hitY) : hitX - Math.floor(hitX);
+
+        if ((side === 0 && dirX > 0) || (side === 1 && dirY < 0)) {
+          wallX = 1 - wallX;
+        }
+      }
+
       return {
         dist: Math.min(distOut, maxDist),
         side,
         hitType: hitType || 1,
+        wallX,
       };
     }
 
@@ -1689,7 +2250,7 @@
       if (!p.onGround) {
         spreadScale *= 1.7;
       }
-      if (keys.shift && p.crouchBlend < 0.2) {
+      if (sprintInputActive() && p.crouchBlend < 0.2) {
         spreadScale *= 1.16;
       }
 
@@ -1756,7 +2317,9 @@
       p.shotCd = Math.max(0, p.shotCd - dt);
       p.dryFireCd = Math.max(0, p.dryFireCd - dt);
 
-      const crouchHeld = Boolean(keys.c || keys.control || keys.controlleft || keys.controlright);
+      const crouchHeld = Boolean(
+        keys.c || keys.control || keys.controlleft || keys.controlright || (touchInput.enabled && touchInput.crouching)
+      );
       if (jumpQueued) {
         if (p.onGround && !crouchHeld) {
           p.onGround = false;
@@ -1785,10 +2348,14 @@
       if (keys.arrowright) {
         p.angle += turnSpeed * dt;
       }
+      if (touchInput.enabled && touchInput.lookDX !== 0) {
+        p.angle += touchInput.lookDX * 0.0031;
+        touchInput.lookDX = 0;
+      }
       p.angle = normAngle(p.angle);
 
-      const fwd = (keys.w ? 1 : 0) - (keys.s ? 1 : 0);
-      const strafe = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
+      const fwd = (keys.w ? 1 : 0) - (keys.s ? 1 : 0) - touchInput.moveY;
+      const strafe = (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + touchInput.moveX;
 
       let mvx = 0;
       let mvy = 0;
@@ -1808,7 +2375,7 @@
       }
 
       let speed = p.speed;
-      if (keys.shift && !p.crouching) {
+      if (sprintInputActive() && !p.crouching) {
         speed *= 1.45;
       }
       speed *= 1 - p.crouchBlend * 0.34;
@@ -1828,7 +2395,7 @@
         }
       }
 
-      if (mouseDown && p.shotCd <= 0) {
+      if ((mouseDown || touchInput.shooting) && p.shotCd <= 0) {
         shootByPlayer();
       }
 
@@ -2123,24 +2690,8 @@
       updateHud();
     }
 
-    function wallColor(type, side, distVal) {
-      const palette = [
-        [128, 155, 181],
-        [157, 133, 102],
-        [103, 150, 111],
-      ];
-      const p = palette[(type - 1 + palette.length) % palette.length];
-
-      let light = 1 / (1 + distVal * distVal * 0.22);
-      light = 0.28 + light * 1.18;
-      if (side === 1) {
-        light *= 0.78;
-      }
-
-      const r = clamp(Math.floor(p[0] * light), 0, 255);
-      const g = clamp(Math.floor(p[1] * light), 0, 255);
-      const b = clamp(Math.floor(p[2] * light), 0, 255);
-      return `rgb(${r}, ${g}, ${b})`;
+    function getWallTexture(type) {
+      return WALL_TEXTURES[type] || WALL_TEXTURES[1];
     }
 
     function getViewYOffset() {
@@ -2150,7 +2701,7 @@
       const moveIntent = Math.hypot((keys.w ? 1 : 0) - (keys.s ? 1 : 0), (keys.d ? 1 : 0) - (keys.a ? 1 : 0));
       const bob =
         p.onGround && moveIntent > 0
-          ? Math.sin(game.t * (keys.shift && !p.crouching ? 12.5 : 8.5)) *
+          ? Math.sin(game.t * (sprintInputActive() && !p.crouching ? 12.5 : 8.5)) *
             (p.crouchBlend > 0.3 ? 1.3 : 2.6) *
             Math.min(1, moveIntent)
           : 0;
@@ -2175,6 +2726,43 @@
       ground.addColorStop(1, "#141a15");
       ctx.fillStyle = ground;
       ctx.fillRect(0, horizon, w, h - horizon);
+
+      const glowR = Math.max(70, h * 0.15);
+      const sunX = w * 0.72;
+      const sunY = horizon - h * 0.34;
+      const sun = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, glowR);
+      sun.addColorStop(0, "rgba(255, 225, 170, 0.32)");
+      sun.addColorStop(0.5, "rgba(255, 225, 170, 0.14)");
+      sun.addColorStop(1, "rgba(255, 225, 170, 0)");
+      ctx.fillStyle = sun;
+      ctx.fillRect(sunX - glowR, sunY - glowR, glowR * 2, glowR * 2);
+
+      const haze = ctx.createLinearGradient(0, horizon - 2, 0, horizon + h * 0.22);
+      haze.addColorStop(0, "rgba(155, 197, 223, 0.17)");
+      haze.addColorStop(1, "rgba(155, 197, 223, 0)");
+      ctx.fillStyle = haze;
+      ctx.fillRect(0, horizon - 2, w, h * 0.22);
+
+      ctx.strokeStyle = "rgba(169, 203, 184, 0.08)";
+      ctx.lineWidth = 1;
+      for (let i = 1; i <= 30; i++) {
+        const t = i / 30;
+        const y = horizon + (h - horizon) * t * t;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = "rgba(176, 222, 207, 0.065)";
+      for (let i = -11; i <= 11; i++) {
+        const xTop = w / 2 + i * 14;
+        const xBottom = w / 2 + i * 118;
+        ctx.beginPath();
+        ctx.moveTo(xTop, horizon);
+        ctx.lineTo(xBottom, h);
+        ctx.stroke();
+      }
     }
 
     function drawWalls() {
@@ -2198,10 +2786,22 @@
         const wallH = Math.min(h * 1.8, h / corrected);
         const y = Math.floor((h - wallH) / 2 + viewOffset);
 
-        ctx.fillStyle = wallColor(ray.hitType, ray.side, corrected);
+        const tex = getWallTexture(ray.hitType);
+        const srcX = clamp(Math.floor(ray.wallX * tex.width), 0, tex.width - 1);
+        ctx.drawImage(tex, srcX, 0, 1, tex.height, x, y, 1, wallH + 1);
+
+        const light = clamp(1 - corrected / 26, 0.14, 1);
+        const sideShade = ray.side === 1 ? 0.22 : 0.08;
+        const shadow = clamp((1 - light) * 0.9 + sideShade, 0.06, 0.85);
+        ctx.fillStyle = `rgba(7, 13, 20, ${shadow})`;
         ctx.fillRect(x, y, 1, wallH + 1);
 
-        const fog = clamp((corrected - 8) / 25, 0, 0.72);
+        const floorShadowTop = y + wallH * 0.72;
+        const floorShade = clamp(0.09 + corrected / 120, 0.09, 0.3);
+        ctx.fillStyle = `rgba(0, 0, 0, ${floorShade})`;
+        ctx.fillRect(x, floorShadowTop, 1, y + wallH - floorShadowTop + 1);
+
+        const fog = clamp((corrected - 7) / 23, 0, 0.75);
         if (fog > 0.01) {
           ctx.fillStyle = `rgba(8, 13, 20, ${fog})`;
           ctx.fillRect(x, y, 1, wallH + 1);
@@ -2212,37 +2812,69 @@
     function drawBotSprite(screenX, yTop, w, h, bot, distToBot) {
       const health = clamp(bot.hp / bot.maxHp, 0, 1);
       const shade = clamp(1 - distToBot / 14.5, 0.2, 1);
+      const stride = Math.sin(game.t * 8.3 + bot.strafeSeed) * clamp(1 - distToBot / 18, 0.2, 1);
+      const torsoY = yTop + h * 0.33;
+      const torsoH = h * 0.36;
+      const torsoW = w * 0.5;
+      const torsoX = screenX - torsoW / 2;
+      const footY = yTop + h * 0.94;
 
-      let bodyColor = [
-        Math.floor(242 * shade),
-        Math.floor(177 * shade),
-        Math.floor(121 * shade),
-      ];
-
-      if (bot.hitFlash > 0) {
-        bodyColor = [255, 233, 233];
-      }
-
-      const bodyW = w * 0.56;
-      const bodyH = h * 0.62;
-      const bodyX = screenX - bodyW / 2;
-      const bodyY = yTop + h * 0.3;
-
-      ctx.fillStyle = `rgb(${bodyColor[0]}, ${bodyColor[1]}, ${bodyColor[2]})`;
-      ctx.fillRect(bodyX, bodyY, bodyW, bodyH);
-
-      const headR = h * 0.13;
       ctx.beginPath();
-      ctx.arc(screenX, yTop + h * 0.2, headR, 0, Math.PI * 2);
-      ctx.fillStyle = bot.hitFlash > 0 ? "#fff3f3" : `rgb(${Math.floor(253 * shade)}, ${Math.floor(211 * shade)}, ${Math.floor(166 * shade)})`;
+      ctx.ellipse(screenX, footY + h * 0.035, w * 0.38, h * 0.08, 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 0, 0, ${clamp(0.34 * shade, 0.1, 0.34)})`;
       ctx.fill();
 
-      ctx.strokeStyle = "rgba(18, 25, 33, 0.86)";
-      ctx.lineWidth = Math.max(1, h * 0.02);
+      const legW = w * 0.16;
+      const legH = h * 0.24;
+      const leftLegX = screenX - torsoW * 0.24 - legW * 0.5;
+      const rightLegX = screenX + torsoW * 0.24 - legW * 0.5;
+      const legY = yTop + h * 0.67;
+      const leftStride = stride * h * 0.022;
+      const rightStride = -stride * h * 0.022;
+      ctx.fillStyle = `rgba(${Math.floor(66 * shade)}, ${Math.floor(88 * shade)}, ${Math.floor(108 * shade)}, 0.95)`;
+      ctx.fillRect(leftLegX, legY + leftStride, legW, legH);
+      ctx.fillRect(rightLegX, legY + rightStride, legW, legH);
+
+      const bodyGrad = ctx.createLinearGradient(0, torsoY, 0, torsoY + torsoH);
+      bodyGrad.addColorStop(0, `rgb(${Math.floor(118 * shade)}, ${Math.floor(145 * shade)}, ${Math.floor(175 * shade)})`);
+      bodyGrad.addColorStop(1, `rgb(${Math.floor(59 * shade)}, ${Math.floor(78 * shade)}, ${Math.floor(97 * shade)})`);
+      ctx.fillStyle = bodyGrad;
+      ctx.fillRect(torsoX, torsoY, torsoW, torsoH);
+
+      ctx.fillStyle = `rgba(${Math.floor(171 * shade)}, ${Math.floor(198 * shade)}, ${Math.floor(218 * shade)}, 0.65)`;
+      ctx.fillRect(torsoX + torsoW * 0.18, torsoY + torsoH * 0.08, torsoW * 0.64, torsoH * 0.2);
+      ctx.fillStyle = `rgba(${Math.floor(48 * shade)}, ${Math.floor(62 * shade)}, ${Math.floor(77 * shade)}, 0.95)`;
+      ctx.fillRect(torsoX + torsoW * 0.42, torsoY + torsoH * 0.44, torsoW * 0.72, torsoH * 0.12);
+
+      const armY = torsoY + torsoH * 0.3;
+      ctx.fillStyle = `rgba(${Math.floor(82 * shade)}, ${Math.floor(108 * shade)}, ${Math.floor(132 * shade)}, 0.95)`;
+      ctx.fillRect(torsoX - torsoW * 0.18, armY, torsoW * 0.2, torsoH * 0.44);
+      ctx.fillRect(torsoX + torsoW * 0.98, armY, torsoW * 0.2, torsoH * 0.44);
+
+      const headR = h * 0.12;
+      const headY = yTop + h * 0.2;
       ctx.beginPath();
-      ctx.moveTo(screenX, bodyY + h * 0.1);
-      ctx.lineTo(screenX + w * 0.28, bodyY + h * 0.28);
-      ctx.stroke();
+      ctx.arc(screenX, headY, headR, 0, Math.PI * 2);
+      ctx.fillStyle = bot.hitFlash > 0 ? "#fff6f6" : `rgb(${Math.floor(220 * shade)}, ${Math.floor(201 * shade)}, ${Math.floor(184 * shade)})`;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(screenX, headY - headR * 0.1, headR * 1.05, Math.PI, Math.PI * 2);
+      ctx.fillStyle = `rgba(${Math.floor(68 * shade)}, ${Math.floor(90 * shade)}, ${Math.floor(112 * shade)}, 0.98)`;
+      ctx.fill();
+      ctx.fillStyle = `rgba(${Math.floor(114 * shade)}, ${Math.floor(194 * shade)}, ${Math.floor(226 * shade)}, 0.85)`;
+      ctx.fillRect(screenX - headR * 0.6, headY - headR * 0.2, headR * 1.2, headR * 0.26);
+
+      ctx.strokeStyle = "rgba(14, 24, 32, 0.86)";
+      ctx.lineWidth = Math.max(1, h * 0.018);
+      ctx.strokeRect(torsoX, torsoY, torsoW, torsoH);
+      ctx.strokeRect(leftLegX, legY + leftStride, legW, legH);
+      ctx.strokeRect(rightLegX, legY + rightStride, legW, legH);
+
+      if (bot.hitFlash > 0) {
+        ctx.fillStyle = `rgba(255, 236, 236, ${clamp(bot.hitFlash * 3.2, 0, 0.42)})`;
+        ctx.fillRect(torsoX - 1, torsoY - 1, torsoW + 2, torsoH + 2);
+      }
 
       const barW = w * 0.72;
       const barH = Math.max(2, h * 0.04);
@@ -2256,12 +2888,31 @@
 
     function drawPickupSprite(screenX, yTop, size, type, distToItem) {
       const alpha = clamp(1 - distToItem / 16, 0.2, 0.95);
+      const hover = Math.sin(game.t * 4.2 + distToItem * 0.9) * size * 0.1;
       ctx.globalAlpha = alpha;
 
       ctx.beginPath();
-      ctx.arc(screenX, yTop + size * 0.5, size * 0.28, 0, Math.PI * 2);
+      ctx.ellipse(screenX, yTop + size * 0.72, size * 0.24, size * 0.09, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(screenX, yTop + size * 0.48 + hover, size * 0.3, 0, Math.PI * 2);
       ctx.fillStyle = type === "med" ? "#89f3a1" : "#72ebff";
       ctx.fill();
+
+      const glow = ctx.createRadialGradient(
+        screenX,
+        yTop + size * 0.48 + hover,
+        size * 0.08,
+        screenX,
+        yTop + size * 0.48 + hover,
+        size * 0.56
+      );
+      glow.addColorStop(0, type === "med" ? "rgba(172, 255, 186, 0.55)" : "rgba(138, 242, 255, 0.5)");
+      glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(screenX - size * 0.6, yTop - size * 0.25, size * 1.2, size * 1.2);
 
       ctx.strokeStyle = "rgba(8, 20, 26, 0.8)";
       ctx.lineWidth = Math.max(1, size * 0.06);
@@ -2271,7 +2922,7 @@
       ctx.font = `bold ${Math.max(8, Math.floor(size * 0.24))}px Trebuchet MS`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(type === "med" ? "+" : "B", screenX, yTop + size * 0.5 + 0.5);
+      ctx.fillText(type === "med" ? "+" : "B", screenX, yTop + size * 0.48 + hover + 0.5);
 
       ctx.globalAlpha = 1;
     }
@@ -2398,7 +3049,7 @@
       const weapon = getPlayerWeapon();
       const p = game.player;
       const baseGap = weapon.id === "shotgun" ? 16 : weapon.id === "sniper" ? 7 : 10;
-      const gap = baseGap + (p.onGround ? 0 : 6) + (keys.shift && !p.crouching ? 2 : 0) - p.crouchBlend * 3.5;
+      const gap = baseGap + (p.onGround ? 0 : 6) + (sprintInputActive() && !p.crouching ? 2 : 0) - p.crouchBlend * 3.5;
       const arm = weapon.id === "sniper" ? 10 : 8;
       const ring = (weapon.id === "shotgun" ? 14 : weapon.id === "sniper" ? 9 : 12) + (p.onGround ? 0 : 2);
 
@@ -2542,12 +3193,13 @@
       audio.onMatchStart();
       initGame();
       jumpQueued = false;
+      clearTouchState();
       overlay.style.display = "none";
       startBtn.textContent = "RESTART";
       statusEl.textContent = "Drop in and fight.";
       renderFeed();
       canvas.focus();
-      if (canvas.requestPointerLock) {
+      if (!touchInput.enabled && canvas.requestPointerLock) {
         canvas.requestPointerLock();
       }
     }
@@ -2601,12 +3253,16 @@
     window.addEventListener("blur", () => {
       mouseDown = false;
       jumpQueued = false;
+      clearTouchState();
       for (const key of Object.keys(keys)) {
         keys[key] = false;
       }
     });
 
     canvas.addEventListener("mousedown", () => {
+      if (touchInput.enabled) {
+        return;
+      }
       mouseDown = true;
       if (canvas.requestPointerLock) {
         canvas.requestPointerLock();
@@ -2646,6 +3302,7 @@
     });
 
     updateAudioHud();
+    setupTouchControls();
     resize();
     requestAnimationFrame(loop);
   </script>
