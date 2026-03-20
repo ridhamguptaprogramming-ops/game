@@ -5,14 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Battle Royale 3D Lite</title>
   <style>
+    @import url("https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
     :root {
-      --panel: rgba(8, 17, 27, 0.82);
-      --panel-border: rgba(161, 219, 255, 0.4);
+      --panel: rgba(6, 18, 31, 0.76);
+      --panel-solid: rgba(5, 15, 26, 0.9);
+      --panel-border: rgba(156, 225, 240, 0.42);
+      --panel-highlight: rgba(164, 251, 214, 0.3);
       --text: #f3fbff;
-      --muted: #bdd1dd;
-      --accent: #77f3d5;
+      --muted: #afcad5;
+      --accent: #74f7ce;
+      --accent-2: #43c9ff;
       --ok: #9bf59c;
       --warn: #ffd18b;
+      --danger: #ff8c7b;
     }
 
     * {
@@ -27,9 +33,37 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
       color: var(--text);
-      background: radial-gradient(circle at 20% 15%, #1f4157 0%, #101a28 55%, #060a12 100%);
+      background:
+        radial-gradient(circle at 18% 14%, rgba(58, 149, 129, 0.26), transparent 34%),
+        radial-gradient(circle at 82% 88%, rgba(55, 133, 214, 0.22), transparent 32%),
+        linear-gradient(148deg, #132437 0%, #0b1726 52%, #050b13 100%);
+      position: relative;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      inset: -18vh -30vw auto auto;
+      width: 56vw;
+      height: 56vw;
+      background: radial-gradient(circle at 45% 45%, rgba(111, 255, 214, 0.11), rgba(111, 255, 214, 0));
+      filter: blur(12px);
+    }
+
+    body::after {
+      inset: auto auto -26vh -22vw;
+      width: 58vw;
+      height: 58vw;
+      background: radial-gradient(circle at 55% 55%, rgba(88, 183, 255, 0.14), rgba(88, 183, 255, 0));
+      filter: blur(20px);
     }
 
     #game {
@@ -38,22 +72,159 @@
       display: block;
       cursor: crosshair;
       background: #0b121d;
+      position: relative;
+      z-index: 1;
     }
 
     #hud {
       position: fixed;
       top: 14px;
       left: 14px;
-      padding: 12px 14px;
+      width: min(344px, calc(100vw - 28px));
+      padding: 14px;
       border: 1px solid var(--panel-border);
       background: var(--panel);
-      backdrop-filter: blur(3px);
-      border-radius: 10px;
-      min-width: 238px;
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
       pointer-events: auto;
-      line-height: 1.45;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+      line-height: 1.35;
+      display: grid;
+      gap: 10px;
+      box-shadow: 0 20px 46px rgba(0, 0, 0, 0.38);
       z-index: 4;
+    }
+
+    #hud::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(130deg, rgba(109, 247, 209, 0.08), rgba(67, 201, 255, 0));
+      mix-blend-mode: screen;
+    }
+
+    .hudHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .brand {
+      font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif;
+      letter-spacing: 1.2px;
+      font-size: 26px;
+      line-height: 1;
+      color: #f3ffff;
+    }
+
+    #matchState {
+      font-size: 11px;
+      letter-spacing: 0.9px;
+      font-weight: 700;
+      color: #052a35;
+      background: linear-gradient(90deg, #78ffd2, #68d6ff);
+      border-radius: 999px;
+      padding: 5px 12px;
+      min-width: 64px;
+      text-align: center;
+      box-shadow: 0 6px 16px rgba(75, 196, 245, 0.35);
+    }
+
+    #hud.low-health #matchState {
+      color: #3f1212;
+      background: linear-gradient(90deg, #ffc09c, #ff8f8f);
+      animation: pulseWarn 0.85s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseWarn {
+      from {
+        box-shadow: 0 5px 14px rgba(255, 150, 138, 0.26);
+      }
+      to {
+        box-shadow: 0 8px 18px rgba(255, 130, 130, 0.5);
+      }
+    }
+
+    .meter {
+      background: rgba(10, 24, 36, 0.68);
+      border: 1px solid rgba(164, 231, 246, 0.23);
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+
+    .meterTop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.45px;
+    }
+
+    .meterTop strong {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .meterTrack {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(9, 15, 23, 0.8);
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(183, 224, 243, 0.12);
+    }
+
+    .meterFill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      transition: width 0.2s ease;
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.25);
+    }
+
+    .meterTrack.hp .meterFill {
+      background: linear-gradient(90deg, #63f0b0 0%, #ffd482 58%, #ff8178 100%);
+    }
+
+    .meterTrack.boost .meterFill {
+      background: linear-gradient(90deg, #6cdbff, #5dffd4);
+    }
+
+    .statGrid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .tile {
+      border-radius: 11px;
+      border: 1px solid rgba(165, 229, 244, 0.2);
+      background: rgba(8, 20, 33, 0.72);
+      padding: 8px 8px 7px;
+      text-align: center;
+    }
+
+    .tile span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.35px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .tile strong {
+      font-size: 18px;
+      line-height: 1;
+      color: #effcff;
+      text-shadow: 0 0 14px rgba(133, 223, 255, 0.22);
     }
 
     .row {
@@ -61,25 +232,32 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      font-size: 14px;
+      font-size: 13px;
       color: var(--muted);
+      padding: 4px 1px;
+      border-bottom: 1px dashed rgba(162, 220, 238, 0.16);
     }
 
     .row strong {
       color: var(--text);
-      font-size: 15px;
+      font-size: 14px;
       letter-spacing: 0.2px;
     }
 
-    #hpValue {
-      color: var(--ok);
-    }
-
     #aliveValue {
-      color: #f6e6a7;
+      color: #ffeab1;
     }
 
-    #zoneValue {
+    #weaponValue {
+      color: #ffe3a8;
+    }
+
+    #phaseValue {
+      color: #b9d8ff;
+    }
+
+    #zoneValue,
+    #zoneTimerValue {
       color: #9dc4ff;
     }
 
@@ -87,35 +265,33 @@
       color: var(--accent);
     }
 
-    #weaponValue {
-      color: #ffe3a8;
-    }
-
     #audioValue {
       color: #e7f3ff;
     }
 
     #audioToggle {
-      margin-top: 8px;
+      margin-top: 2px;
       width: 100%;
       border: 1px solid rgba(185, 223, 255, 0.4);
       border-radius: 999px;
-      padding: 6px 11px;
+      padding: 8px 12px;
       color: #e7f4ff;
-      background: rgba(117, 184, 255, 0.15);
+      background: linear-gradient(90deg, rgba(68, 170, 255, 0.27), rgba(112, 253, 210, 0.22));
       font-weight: 700;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
       font-size: 12px;
       cursor: pointer;
-      transition: filter 0.12s ease;
+      transition: transform 0.14s ease, filter 0.12s ease, border-color 0.12s ease;
     }
 
     #audioToggle:hover {
       filter: brightness(1.12);
+      transform: translateY(-1px);
+      border-color: var(--panel-highlight);
     }
 
     #audioToggle.muted {
-      background: rgba(255, 140, 140, 0.16);
+      background: linear-gradient(90deg, rgba(255, 145, 145, 0.23), rgba(255, 195, 146, 0.2));
       border-color: rgba(255, 177, 177, 0.45);
       color: #ffdede;
     }
@@ -130,25 +306,50 @@
       position: fixed;
       right: 14px;
       top: 14px;
-      width: min(380px, calc(100vw - 28px));
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.22);
-      background: rgba(0, 0, 0, 0.25);
+      width: min(420px, calc(100vw - 28px));
+      padding: 14px 12px 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(159, 221, 241, 0.34);
+      background: rgba(5, 14, 23, 0.58);
+      backdrop-filter: blur(8px);
       font-size: 13px;
       pointer-events: none;
-      min-height: 54px;
+      min-height: 64px;
       z-index: 4;
+    }
+
+    #feed::before {
+      content: "ELIM FEED";
+      display: block;
+      color: rgba(189, 226, 242, 0.78);
+      font-size: 10px;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
     }
 
     #feed .line {
       color: #f4f8ff;
-      opacity: 0.95;
-      margin: 4px 0;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-      white-space: nowrap;
+      opacity: var(--line-alpha, 0.95);
+      margin: 6px 0;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.36);
+      background: rgba(98, 170, 223, 0.12);
+      border: 1px solid rgba(168, 218, 245, 0.14);
+      border-radius: 9px;
+      padding: 6px 9px;
       overflow: hidden;
       text-overflow: ellipsis;
+      animation: feedIn 0.22s ease;
+    }
+
+    @keyframes feedIn {
+      from {
+        transform: translateY(4px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: var(--line-alpha, 0.95);
+      }
     }
 
     #overlay {
@@ -156,88 +357,160 @@
       inset: 0;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, rgba(3, 13, 23, 0.9), rgba(2, 6, 12, 0.95));
+      background:
+        radial-gradient(circle at 18% 20%, rgba(118, 255, 214, 0.15), transparent 36%),
+        radial-gradient(circle at 84% 78%, rgba(81, 172, 255, 0.16), transparent 34%),
+        linear-gradient(135deg, rgba(3, 13, 23, 0.91), rgba(2, 6, 12, 0.96));
       padding: 20px;
-      text-align: center;
+      text-align: left;
       z-index: 8;
     }
 
     #overlay .card {
-      max-width: 760px;
+      max-width: 780px;
       width: 100%;
-      border-radius: 16px;
-      border: 1px solid rgba(149, 227, 255, 0.4);
-      background: rgba(7, 18, 30, 0.88);
-      padding: 28px 24px;
-      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.45);
+      border-radius: 20px;
+      border: 1px solid rgba(149, 227, 255, 0.36);
+      background: rgba(7, 18, 30, 0.86);
+      padding: 28px 24px 24px;
+      box-shadow: 0 28px 65px rgba(0, 0, 0, 0.45);
+      animation: cardIn 0.35s ease;
+    }
+
+    @keyframes cardIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.99);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
     #title {
       margin: 0;
-      font-size: clamp(30px, 6vw, 54px);
-      letter-spacing: 1px;
+      font-family: "Bebas Neue", Impact, "Arial Narrow", sans-serif;
+      font-size: clamp(38px, 7vw, 64px);
+      letter-spacing: 1.6px;
+      line-height: 0.95;
+      color: #f4feff;
     }
 
     #subtitle {
       color: #d2e5f0;
-      margin: 10px auto 14px;
+      margin: 12px 0 16px;
       max-width: 620px;
       line-height: 1.5;
       font-size: 15px;
     }
 
     #controls {
-      margin: 14px auto 22px;
+      margin: 14px 0 22px;
       text-align: left;
       max-width: 520px;
       color: #e6f4ff;
-      background: rgba(130, 190, 255, 0.08);
-      border-radius: 12px;
-      border: 1px solid rgba(130, 190, 255, 0.25);
+      background: rgba(130, 190, 255, 0.07);
+      border-radius: 14px;
+      border: 1px solid rgba(130, 190, 255, 0.26);
       padding: 12px 14px;
       font-size: 14px;
       line-height: 1.6;
     }
 
+    #controls > div {
+      padding: 2px 0;
+    }
+
     #status {
-      color: #9ee8ff;
+      color: #b4f1ff;
       margin-bottom: 14px;
       min-height: 22px;
-      font-size: 16px;
+      font-size: 14px;
+      letter-spacing: 0.45px;
+      text-transform: uppercase;
     }
 
     #startBtn {
       border: 0;
       border-radius: 999px;
-      padding: 11px 26px;
+      padding: 12px 28px;
       font-weight: 700;
       font-size: 15px;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.65px;
       cursor: pointer;
-      color: #04252f;
-      background: linear-gradient(90deg, #8cffcb, #7dd7ff);
-      box-shadow: 0 10px 22px rgba(82, 194, 255, 0.28);
-      transition: transform 0.14s ease;
+      color: #062834;
+      background: linear-gradient(90deg, #8cffcb, #73dcff 58%, #74b8ff);
+      box-shadow: 0 12px 26px rgba(82, 194, 255, 0.3);
+      transition: transform 0.14s ease, filter 0.14s ease;
     }
 
     #startBtn:hover {
       transform: translateY(-1px);
+      filter: brightness(1.04);
+    }
+
+    @media (max-width: 900px) {
+      #hud {
+        width: min(320px, calc(100vw - 20px));
+        top: 10px;
+        left: 10px;
+        padding: 11px;
+      }
+
+      .brand {
+        font-size: 22px;
+      }
+
+      #feed {
+        right: 10px;
+        width: min(390px, calc(100vw - 20px));
+        top: auto;
+        bottom: 10px;
+      }
     }
 
     @media (max-width: 780px) {
       #hud {
-        min-width: 198px;
-        font-size: 13px;
+        width: min(280px, calc(100vw - 16px));
+      }
+
+      .statGrid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .tile strong {
+        font-size: 16px;
       }
 
       #feed {
-        top: auto;
-        bottom: 18px;
+        width: min(360px, calc(100vw - 16px));
+        min-height: 58px;
         font-size: 12px;
       }
 
       #subtitle {
         font-size: 14px;
+      }
+
+      #controls {
+        font-size: 13px;
+      }
+    }
+
+    @media (max-width: 540px) {
+      #overlay {
+        padding: 12px;
+      }
+
+      #overlay .card {
+        padding: 18px 16px;
+      }
+
+      #feed {
+        left: 8px;
+        right: 8px;
+        width: auto;
       }
     }
   </style>
@@ -246,12 +519,39 @@
   <canvas id="game"></canvas>
 
   <div id="hud">
-    <div class="row">HP <strong id="hpValue">100</strong></div>
-    <div class="row">Alive <strong id="aliveValue">0</strong></div>
-    <div class="row">Kills <strong id="killsValue">0</strong></div>
-    <div class="row">Zone <strong id="zoneValue">0m</strong></div>
-    <div class="row">Phase <strong id="phaseValue">1</strong></div>
-    <div class="row">Boost <strong id="boostValue">0.0s</strong></div>
+    <div class="hudHeader">
+      <div class="brand">BATTLE OPS</div>
+      <div id="matchState">READY</div>
+    </div>
+
+    <div class="meter">
+      <div class="meterTop">
+        <span>Health</span>
+        <strong><span id="hpValue">100</span> HP</strong>
+      </div>
+      <div class="meterTrack hp">
+        <div class="meterFill" id="hpFill"></div>
+      </div>
+    </div>
+
+    <div class="meter">
+      <div class="meterTop">
+        <span>Boost</span>
+        <strong id="boostValue">0.0s</strong>
+      </div>
+      <div class="meterTrack boost">
+        <div class="meterFill" id="boostFill"></div>
+      </div>
+    </div>
+
+    <div class="statGrid">
+      <div class="tile"><span>Alive</span><strong id="aliveValue">0</strong></div>
+      <div class="tile"><span>Kills</span><strong id="killsValue">0</strong></div>
+      <div class="tile"><span>Phase</span><strong id="phaseValue">1</strong></div>
+    </div>
+
+    <div class="row">Zone Radius <strong id="zoneValue">0m</strong></div>
+    <div class="row">Next Shrink <strong id="zoneTimerValue">0s</strong></div>
     <div class="row">Weapon <strong id="weaponValue">Pistol</strong></div>
     <div class="row">Audio <strong id="audioValue">ON</strong></div>
     <button id="audioToggle" type="button">MUTE (M)</button>
@@ -291,15 +591,20 @@
     const startBtn = document.getElementById("startBtn");
     const statusEl = document.getElementById("status");
     const feedEl = document.getElementById("feed");
+    const hud = document.getElementById("hud");
 
     const hpValue = document.getElementById("hpValue");
+    const hpFill = document.getElementById("hpFill");
     const aliveValue = document.getElementById("aliveValue");
     const killsValue = document.getElementById("killsValue");
     const zoneValue = document.getElementById("zoneValue");
+    const zoneTimerValue = document.getElementById("zoneTimerValue");
     const phaseValue = document.getElementById("phaseValue");
     const boostValue = document.getElementById("boostValue");
+    const boostFill = document.getElementById("boostFill");
     const weaponValue = document.getElementById("weaponValue");
     const audioValue = document.getElementById("audioValue");
+    const matchState = document.getElementById("matchState");
     const audioToggle = document.getElementById("audioToggle");
 
     const MAP_W = 34;
@@ -1042,7 +1347,12 @@
         feedEl.innerHTML = '<div class="line">No eliminations yet.</div>';
         return;
       }
-      feedEl.innerHTML = game.feed.map((item) => `<div class="line">${item.text}</div>`).join("");
+      feedEl.innerHTML = game.feed
+        .map((item) => {
+          const alpha = clamp(item.ttl / 6.2, 0.3, 1);
+          return `<div class="line" style="--line-alpha:${alpha.toFixed(2)}">${item.text}</div>`;
+        })
+        .join("");
     }
 
     function aliveCount() {
@@ -1504,13 +1814,30 @@
     }
 
     function updateHud() {
-      hpValue.textContent = Math.max(0, Math.ceil(game.player.hp));
+      const hp = clamp(game.player.hp, 0, game.player.maxHp);
+      const hpRatio = clamp(hp / game.player.maxHp, 0, 1);
+      const boost = Math.max(0, game.player.boost);
+      const boostRatio = clamp(boost / 13, 0, 1);
+      const zoneSeconds = Math.max(0, Math.ceil(game.zone.duration - game.zone.timer));
+
+      hpValue.textContent = Math.ceil(hp);
       aliveValue.textContent = aliveCount();
       killsValue.textContent = game.player.kills;
       zoneValue.textContent = `${Math.ceil(game.zone.radius * 100)}m`;
+      zoneTimerValue.textContent = `${zoneSeconds}s`;
       phaseValue.textContent = game.zone.phase;
-      boostValue.textContent = `${game.player.boost.toFixed(1)}s`;
+      boostValue.textContent = `${boost.toFixed(1)}s`;
       weaponValue.textContent = getPlayerWeapon().label;
+
+      hpFill.style.width = `${Math.round(hpRatio * 100)}%`;
+      boostFill.style.width = `${Math.round(boostRatio * 100)}%`;
+      hud.classList.toggle("low-health", hpRatio < 0.28);
+
+      if (game.finished) {
+        matchState.textContent = game.victory ? "WIN" : "OUT";
+      } else {
+        matchState.textContent = game.running ? "LIVE" : "READY";
+      }
     }
 
     function endGame(victory) {
@@ -1536,6 +1863,8 @@
       if (document.pointerLockElement === canvas) {
         document.exitPointerLock();
       }
+
+      updateHud();
     }
 
     function update(dt) {
