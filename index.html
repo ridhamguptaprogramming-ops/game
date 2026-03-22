@@ -312,6 +312,32 @@
       filter: none;
     }
 
+    #mapToggle {
+      margin-top: 8px;
+      width: 100%;
+      border: 1px solid rgba(117, 225, 255, 0.5);
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: #a4fbff;
+      background: linear-gradient(90deg, rgba(52, 180, 230, 0.35), rgba(74, 200, 255, 0.25));
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform 0.14s ease, filter 0.12s ease, border-color 0.12s ease;
+    }
+
+    #mapToggle:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
+      border-color: #9cf8ff;
+      background: linear-gradient(90deg, rgba(60, 200, 255, 0.45), rgba(90, 220, 255, 0.35));
+    }
+
+    #mapToggle:active {
+      transform: translateY(0px);
+    }
+
     #feed {
       position: fixed;
       right: 14px;
@@ -858,9 +884,9 @@ function updateMapPlayer() {
   }
 }
 
-// TOGGLE MAP (M KEY)
+// TOGGLE MAP (TAB KEY)
 document.addEventListener("keydown", function(e) {
-  if (e.key.toLowerCase() === "m" || e.key === "M") {
+  if (e.key === "Tab") {
     const mapDiv = document.getElementById("bgmiMap");
 
     if (mapDiv.style.display === "none") {
