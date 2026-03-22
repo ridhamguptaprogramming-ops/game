@@ -764,8 +764,80 @@
       <button id="startBtn" type="button">START MATCH</button>
     </div>
   </div>
+  <!-- BGMI MAP OVERLAY -->
+<div id="bgmiMap" style="
+  position: fixed;
+  inset: 0;
+  display: none;
+  z-index: 10;
+  background: rgba(0,0,0,0.85);
+">
+  <div id="map" style="height:100%; width:100%;"></div>
+</div>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
   <script>
+    // ===== BGMI ERANGEL MAP SYSTEM =====
+let mapLoaded = false;
+let bgmiMap, playerMarker, heat;
+
+function initBGMIMap() {
+  if (mapLoaded) return;
+  mapLoaded = true;
+
+  bgmiMap = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -2
+  });
+
+  const bounds = [[0,0], [1000,1000]];
+
+  L.imageOverlay('assets/pubgmap.png', bounds).addTo(bgmiMap);
+  bgmiMap.fitBounds(bounds);
+
+  const heatData = [
+    [500,500,1.0],
+    [700,300,1.0],
+    [300,700,0.9],
+    [800,600,0.9],
+    [600,200,0.8],
+    [400,600,0.6],
+    [650,650,0.6]
+  ];
+
+  heat = L.heatLayer(heatData, {
+    radius: 40,
+    blur: 30
+  }).addTo(bgmiMap);
+
+  playerMarker = L.marker([500,500]).addTo(bgmiMap);
+}
+
+// UPDATE PLAYER ON MAP
+function updateMapPlayer() {
+  if (!game || !playerMarker) return;
+
+  const x = (game.player.x / MAP_W) * 1000;
+  const y = (game.player.y / MAP_H) * 1000;
+
+  playerMarker.setLatLng([y, x]);
+}
+
+// TOGGLE MAP (M KEY)
+document.addEventListener("keydown", function(e) {
+  if (e.key.toLowerCase() === "m") {
+    const mapDiv = document.getElementById("bgmiMap");
+
+    if (mapDiv.style.display === "none") {
+      mapDiv.style.display = "block";
+      initBGMIMap();
+    } else {
+      mapDiv.style.display = "none";
+    }
+  }
+});
     "use strict";
 
     const canvas = document.getElementById("game");
