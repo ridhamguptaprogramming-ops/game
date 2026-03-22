@@ -781,7 +781,7 @@
   <script>
     // ===== BGMI ERANGEL MAP SYSTEM =====
 let mapLoaded = false;
-let bgmiMap, playerMarker, heat;
+let bgmiMap, playerMarker, heat, botMarkers = [];
 
 function initBGMIMap() {
   if (mapLoaded) return;
@@ -796,6 +796,14 @@ function initBGMIMap() {
 
   L.imageOverlay('assets/pubgmap.png', bounds).addTo(bgmiMap);
   bgmiMap.fitBounds(bounds);
+
+  // Create a custom green circle icon for the player
+  const playerIcon = L.divIcon({
+    className: 'player-marker',
+    html: '<div style="background: #00ff00; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #00aa00; box-shadow: 0 0 8px #00ff00;"></div>',
+    iconSize: [16, 16],
+    iconAnchor: [8, 8]
+  });
 
   const heatData = [
     [500,500,1.0],
@@ -812,7 +820,8 @@ function initBGMIMap() {
     blur: 30
   }).addTo(bgmiMap);
 
-  playerMarker = L.marker([500,500]).addTo(bgmiMap);
+  playerMarker = L.marker([500,500], { icon: playerIcon }).addTo(bgmiMap);
+  playerMarker.bindPopup('You are here', { closeButton: false, className: 'map-popup' });
 }
 
 // UPDATE PLAYER ON MAP
@@ -823,19 +832,47 @@ function updateMapPlayer() {
   const y = (game.player.y / MAP_H) * 1000;
 
   playerMarker.setLatLng([y, x]);
+  
+  // Update bot markers
+  if (game.bots.length > 0 && bgmiMap) {
+    // Clear old bot markers
+    botMarkers.forEach(marker => bgmiMap.removeLayer(marker));
+    botMarkers = [];
+    
+    // Add new bot markers
+    const botIcon = L.divIcon({
+      className: 'bot-marker',
+      html: '<div style="background: #ff4444; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 4px #ff4444;"></div>',
+      iconSize: [8, 8],
+      iconAnchor: [4, 4]
+    });
+    
+    for (const bot of game.bots) {
+      if (!bot.dead) {
+        const bx = (bot.x / MAP_W) * 1000;
+        const by = (bot.y / MAP_H) * 1000;
+        const marker = L.marker([by, bx], { icon: botIcon }).addTo(bgmiMap);
+        botMarkers.push(marker);
+      }
+    }
+  }
 }
 
 // TOGGLE MAP (M KEY)
 document.addEventListener("keydown", function(e) {
-  if (e.key.toLowerCase() === "m") {
+  if (e.key.toLowerCase() === "m" || e.key === "M") {
     const mapDiv = document.getElementById("bgmiMap");
 
     if (mapDiv.style.display === "none") {
       mapDiv.style.display = "block";
       initBGMIMap();
+      if (bgmiMap) {
+        bgmiMap.invalidateSize();
+      }
     } else {
       mapDiv.style.display = "none";
     }
+    e.preventDefault();
   }
 });
     "use strict";
@@ -2760,6 +2797,11 @@ document.addEventListener("keydown", function(e) {
       }
 
       updateHud();
+      
+      // Update map player position if map is visible
+      if (mapLoaded && document.getElementById("bgmiMap").style.display !== "none") {
+        updateMapPlayer();
+      }
     }
 
     function getWallTexture(type) {
