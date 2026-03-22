@@ -338,6 +338,22 @@
       transform: translateY(0px);
     }
 
+    #map3dCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    #map3d {
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    #map3d > div {
+      font-family: "Bebas Neue", Impact, sans-serif;
+      letter-spacing: 2px;
+    }
+
     #feed {
       position: fixed;
       right: 14px;
@@ -785,7 +801,7 @@
         <div><strong>Weapons:</strong> 1=Pistol, 2=Shotgun, 3=Sniper, or Mouse Wheel</div>
         <div><strong>Mobile:</strong> Left joystick move, right side drag look, buttons on right to fire/jump/crouch/reload/switch</div>
         <div><strong>Mute:</strong> M key or HUD button</div>
-        <div><strong>Map:</strong> TAB key or HUD button</div>
+        <div><strong>Map:</strong> TAB to open, M to toggle 2D/3D</div>
         <div><strong>Loot:</strong> Walk into drops (green = heal, cyan = boost)</div>
       </div>
       <div id="status">Press start and survive.</div>
@@ -932,30 +948,32 @@ document.addEventListener("keydown", function(e) {
     e.preventDefault();
   }
   
-  // Switch between 2D and 3D (M key)
-  if (e.key === "m" || e.key === "M") {
+  // Switch between 2D and 3D (M key) - only if map is open
+  if ((e.key === "m" || e.key === "M") && !e.repeat) {
     const map2dDiv = document.getElementById("bgmiMap");
     const map3dDiv = document.getElementById("map3d");
     
-    if (map2dDiv.style.display === "none" && map3dDiv.style.display === "none") return;
-    
-    if (currentMapView === '2d') {
-      // Switch to 3D
-      currentMapView = '3d';
-      map2dDiv.style.display = "none";
-      map3dDiv.style.display = "block";
-      init3DMap();
-    } else {
-      // Switch to 2D
-      currentMapView = '2d';
-      map3dDiv.style.display = "none";
-      map2dDiv.style.display = "block";
-      initBGMIMap();
-      if (bgmiMap) {
-        bgmiMap.invalidateSize();
+    // Only handle map switching if a map is open
+    if (map2dDiv.style.display !== "none" || map3dDiv.style.display !== "none") {
+      if (currentMapView === '2d') {
+        // Switch to 3D
+        currentMapView = '3d';
+        map2dDiv.style.display = "none";
+        map3dDiv.style.display = "block";
+        init3DMap();
+      } else {
+        // Switch to 2D
+        currentMapView = '2d';
+        map3dDiv.style.display = "none";
+        map2dDiv.style.display = "block";
+        initBGMIMap();
+        if (bgmiMap) {
+          bgmiMap.invalidateSize();
+        }
       }
+      e.preventDefault();
     }
-    e.preventDefault();
+    // If no map is open, let it fall through to audio toggle
   }
 });
 
@@ -3666,15 +3684,25 @@ window.addEventListener('resize', () => {
     });
 
     document.getElementById("mapToggle").addEventListener("click", () => {
-      const mapDiv = document.getElementById("bgmiMap");
-      if (mapDiv.style.display === "none") {
-        mapDiv.style.display = "block";
-        initBGMIMap();
-        if (bgmiMap) {
-          bgmiMap.invalidateSize();
+      const map2dDiv = document.getElementById("bgmiMap");
+      const map3dDiv = document.getElementById("map3d");
+
+      if (map2dDiv.style.display === "none" && map3dDiv.style.display === "none") {
+        // Show current view
+        if (currentMapView === '2d') {
+          map2dDiv.style.display = "block";
+          initBGMIMap();
+          if (bgmiMap) {
+            bgmiMap.invalidateSize();
+          }
+        } else {
+          map3dDiv.style.display = "block";
+          init3DMap();
         }
       } else {
-        mapDiv.style.display = "none";
+        // Hide all maps
+        map2dDiv.style.display = "none";
+        map3dDiv.style.display = "none";
       }
       canvas.focus();
     });
