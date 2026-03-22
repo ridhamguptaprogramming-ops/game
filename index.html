@@ -747,6 +747,7 @@
     <div class="row">Weapon <strong id="weaponValue">Pistol</strong></div>
     <div class="row">Audio <strong id="audioValue">ON</strong></div>
     <button id="audioToggle" type="button">MUTE (M)</button>
+    <button id="mapToggle" type="button">MAP (TAB)</button>
   </div>
 
   <div id="feed"></div>
@@ -796,8 +797,11 @@
   inset: 0;
   display: none;
   z-index: 10;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.9);
 ">
+  <div style="position: absolute; top: 20px; left: 20px; color: #00ff00; font-size: 18px; font-weight: bold; z-index: 11; text-shadow: 0 0 8px #00ff00;">
+    TACTICAL MAP - Press TAB to close
+  </div>
   <div id="map" style="height:100%; width:100%;"></div>
 </div>
 
@@ -3438,6 +3442,20 @@ document.addEventListener("keydown", function(e) {
     audioToggle.addEventListener("click", () => {
       audio.toggle();
       updateAudioHud();
+      canvas.focus();
+    });
+
+    document.getElementById("mapToggle").addEventListener("click", () => {
+      const mapDiv = document.getElementById("bgmiMap");
+      if (mapDiv.style.display === "none") {
+        mapDiv.style.display = "block";
+        initBGMIMap();
+        if (bgmiMap) {
+          bgmiMap.invalidateSize();
+        }
+      } else {
+        mapDiv.style.display = "none";
+      }
       canvas.focus();
     });
 
