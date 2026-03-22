@@ -878,6 +878,13 @@
     TACTICAL MAP - Press TAB to close
   </div>
   <div id="map" style="height:100%; width:100%;"></div>
+  <div class="map-legend" style="position: absolute; bottom: 20px; right: 20px;">
+    <div style="color: #00ff00; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">Legend</div>
+    <div class="map-legend-item"><span class="map-legend-player"></span> <span>You</span></div>
+    <div class="map-legend-item"><span class="map-legend-enemy"></span> <span>Enemies</span></div>
+    <div class="map-legend-item"><span class="map-legend-blocked"></span> <span>Blocked Zone</span></div>
+    <div class="map-legend-item"><span class="map-legend-obstacle"></span> <span>Walls/Barriers</span></div>
+  </div>
 </div>
 
 <!-- 3D MAP OVERLAY -->
@@ -892,6 +899,13 @@
     3D TACTICAL MAP - Press TAB to toggle / M to switch view
   </div>
   <canvas id="map3dCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
+  <div class="map-legend" style="position: absolute; bottom: 20px; right: 20px;">
+    <div style="color: #00ff00; font-weight: bold; margin-bottom: 8px; text-transform: uppercase;">Legend</div>
+    <div class="map-legend-item"><span class="map-legend-player"></span> <span>You (Green)</span></div>
+    <div class="map-legend-item"><span class="map-legend-enemy"></span> <span>Enemies (Red)</span></div>
+    <div class="map-legend-item"><span class="map-legend-blocked"></span> <span>Danger Zone</span></div>
+    <div class="map-legend-item"><span class="map-legend-obstacle"></span> <span>Obstacles</span></div>
+  </div>
 </div>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
