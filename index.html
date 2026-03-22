@@ -354,6 +354,64 @@
       letter-spacing: 2px;
     }
 
+    .map-legend {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(10, 20, 40, 0.9);
+      border: 1px solid rgba(100, 180, 255, 0.6);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #a4fbff;
+      font-size: 12px;
+      z-index: 5;
+      backdrop-filter: blur(8px);
+    }
+
+    .map-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+
+    .map-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .map-legend-player {
+      background: #00ff00;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #00ff00;
+    }
+
+    .map-legend-enemy {
+      background: #ff4444;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-shadow: 0 0 4px #ff4444;
+    }
+
+    .map-legend-obstacle {
+      background: #888888;
+      width: 10px;
+      height: 10px;
+    }
+
+    .map-legend-blocked {
+      background: #ff8800;
+      width: 8px;
+      height: 8px;
+      border: 2px solid #ff0000;
+      box-sizing: border-box;
+    }
+
     #feed {
       position: fixed;
       right: 14px;
@@ -884,6 +942,54 @@ function initBGMIMap() {
 
   playerMarker = L.marker([500,500], { icon: playerIcon }).addTo(bgmiMap);
   playerMarker.bindPopup('You are here', { closeButton: false, className: 'map-popup' });
+  
+  // Add obstacles and blocked zones
+  addObstaclesTo2DMap();
+}
+
+function addObstaclesTo2DMap() {
+  // Create custom warning icon
+  const blockIcon = L.divIcon({
+    className: 'blocked-marker',
+    html: '<div style="background: #ff8800; width: 12px; height: 12px; border-radius: 2px; border: 2px solid #ff0000; box-shadow: 0 0 6px #ff0000;"></div>',
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+  });
+  
+  // Add blocked zones (warning areas)
+  const blockedZones = [
+    [300, 250], [750, 850], [550, 450], [200, 750], [900, 300]
+  ];
+  
+  for (const zone of blockedZones) {
+    L.circle([zone[0], zone[1]], {
+      color: '#ff8800',
+      fillColor: '#ff8800',
+      fillOpacity: 0.15,
+      weight: 2,
+      dashArray: '5, 5',
+      radius: 60
+    }).addTo(bgmiMap)
+      .bindPopup('⚠️ BLOCKED ZONE', { closeButton: false, className: 'map-popup' });
+  }
+  
+  // Add wall segments
+  const walls = [
+    { from: [100, 200], to: [300, 250] },
+    { from: [700, 400], to: [750, 600] },
+    { from: [400, 100], to: [500, 200] },
+    { from: [800, 700], to: [900, 800] }
+  ];
+  
+  for (const wall of walls) {
+    L.polyline([wall.from, wall.to], {
+      color: '#888888',
+      weight: 3,
+      opacity: 0.8,
+      dashArray: '3, 3'
+    }).addTo(bgmiMap)
+      .bindPopup('Wall/Barrier', { closeButton: false, className: 'map-popup' });
+  }
 }
 
 // UPDATE PLAYER ON MAP
@@ -1046,6 +1152,9 @@ function init3DMap() {
   // Create buildings as simple boxes
   createBuildingsIn3D();
   
+  // Create obstacles and barriers
+  createObstaclesIn3D();
+  
   // Add player marker
   const playerGeom = new THREE.ConeGeometry(0.4, 1.2, 8);
   const playerMat = new THREE.MeshStandardMaterial({ 
@@ -1085,6 +1194,96 @@ function createBuildingsIn3D() {
     building.castShadow = true;
     building.receiveShadow = true;
     scene3d.add(building);
+  }
+}
+
+function createObstaclesIn3D() {
+  // Create walls and barriers
+  const wallCount = 8;
+  
+  for (let i = 0; i < wallCount; i++) {
+    const x = Math.random() * (MAP_W - 6) + 3;
+    const z = Math.random() * (MAP_H - 6) + 3;
+    const isHorizontal = Math.random() > 0.5;
+    const width = isHorizontal ? 3 + Math.random() * 3 : 0.3;
+    const depth = isHorizontal ? 0.3 : 3 + Math.random() * 3;
+    const height = 1.2 + Math.random() * 1.5;
+    
+    const geom = new THREE.BoxGeometry(width, height, depth);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x555555,
+      roughness: 0.9,
+      metalness: 0.3,
+      emissive: 0x333333,
+      emissiveIntensity: 0.2
+    });
+    const wall = new THREE.Mesh(geom, mat);
+    wall.position.set(x, height / 2, z);
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    scene3d.add(wall);
+  }
+  
+  // Create rock formations / boulders as obstacles
+  const rockCount = 10;
+  
+  for (let i = 0; i < rockCount; i++) {
+    const x = Math.random() * (MAP_W - 2) + 1;
+    const z = Math.random() * (MAP_H - 2) + 1;
+    const scale = 0.4 + Math.random() * 0.6;
+    
+    // Create irregular rock shape
+    const geom = new THREE.DodecahedronGeometry(scale, 0);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x666666,
+      roughness: 0.95,
+      metalness: 0.0
+    });
+    const rock = new THREE.Mesh(geom, mat);
+    rock.position.set(x, scale * 0.8, z);
+    rock.rotation.set(
+      Math.random() * Math.PI,
+      Math.random() * Math.PI,
+      Math.random() * Math.PI
+    );
+    rock.castShadow = true;
+    rock.receiveShadow = true;
+    scene3d.add(rock);
+  }
+  
+  // Create blocked/danger zones (visual indicators)
+  const blockedZones = 2;
+  
+  for (let i = 0; i < blockedZones; i++) {
+    const x = Math.random() * (MAP_W - 6) + 3;
+    const z = Math.random() * (MAP_H - 6) + 3;
+    const radius = 1.5 + Math.random() * 1.2;
+    
+    // Create a transparent warning zone
+    const geom = new THREE.CylinderGeometry(radius, radius, 0.1, 32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xff8800,
+      transparent: true,
+      opacity: 0.3,
+      emissive: 0xff8800,
+      emissiveIntensity: 0.6,
+      side: THREE.DoubleSide
+    });
+    const zone = new THREE.Mesh(geom, mat);
+    zone.position.set(x, 0.05, z);
+    scene3d.add(zone);
+    
+    // Add a warning border ring
+    const ringGeom = new THREE.TorusGeometry(radius, 0.15, 16, 100);
+    const ringMat = new THREE.MeshStandardMaterial({
+      color: 0xff0000,
+      emissive: 0xff0000,
+      emissiveIntensity: 0.8
+    });
+    const ring = new THREE.Mesh(ringGeom, ringMat);
+    ring.position.set(x, 0.1, z);
+    ring.rotation.x = Math.PI / 2;
+    scene3d.add(ring);
   }
 }
 
