@@ -1717,462 +1717,462 @@
     const armorLv = entity.armor || 0;
     const armorDef = ARMOR_LEVELS[armorLv] || ARMOR_LEVELS[0];
     if (armorLv > 0 && entity.armorHp > 0) {
+      const reduction = armorDef.dmgReduction;
+      const dmgToHp = rawDamage * (1 - reduction);
+      const dmgToArmor = rawDamage * reduction * 0.5;
+      entity.armorHp = Math.max(0, entity.armorHp - dmgToArmor);
+      if (entity.armorHp <= 0) entity.armor = 0;
+      return dmgToHp;
+    }
+    return rawDamage;
+  }
 
-        toggle() {
-          this.initFromGesture();
-          this.setEnabled(!this.enabled);
-        },
+  function damageEntity(target, amount, sourceId) {
+    if (target.dead) return;
+    const actual = applyArmorDmg(target, amount);
+    target.hp -= actual;
+    target.hitFlash = 0.12;
+    if (sourceId !== "zone") {
+      if (target.id === "player" && sourceId !== "player") audio.playPlayerHit();
+      if (sourceId === "player" && target.type === "bot") audio.playEnemyHit();
+    }
+    if (target.hp <= 0) killEntity(target, sourceId);
+  }
 
-        tone({
-          freq,
-          dur,
-          type = "sine",
-          vol = 0.1,
-          attack = 0.004,
-          release = 0.08,
-          when = 0,
-          detune = 0,
-          bus = "sfx",
-        }) {
-          if (!this.ready || !this.ctx || !this.enabled) {
-            return;
-          }
-          const out = bus === "music" ? this.musicBus : this.sfxBus;
-          const osc = this.ctx.createOscillator();
-          const env = this.ctx.createGain();
-          const start = this.ctx.currentTime + Math.max(0, when);
-          const end = start + Math.max(0.03, dur + release);
+  function killEntity(victim, killerId) {
+    if (victim.dead) return;
+    victim.dead = true; victim.hp = 0;
+    const killer = getEntityById(killerId);
+    if (killer) killer.kills += 1;
+    if (victim.type === "player") audio.playDeath();
+    else if (killerId === "player") audio.playElimination();
+    addFeed(`${nameOf(killerId)} eliminated ${nameOf(victim.id)}`);
 
-          osc.type = type;
-          osc.frequency.setValueAtTime(freq, start);
-          osc.detune.setValueAtTime(detune, start);
+    // Drop loot on death
+    if (victim.type === "bot") {
+      if (Math.random() < 0.7) {
+        const dropTypes = ["med","boost","health","armor","ammo","grenade"];
+        const dt = dropTypes[randInt(0, dropTypes.length-1)];
+        game.pickups.push({ x:victim.x, y:victim.y, r:0.17, type:dt, subtype: dt==="med"?"med_kit":dt==="health"?"bandage":dt==="boost"?"energy_drink":dt==="armor"?`armor_${randInt(1,2)}`:dt==="ammo"?`ammo_${WEAPON_ORDER[randInt(0,WEAPON_ORDER.length-1)]}`:`grenade_frag` });
+      }
+    }
 
-          env.gain.setValueAtTime(0.0001, start);
-          env.gain.linearRampToValueAtTime(vol, start + attack);
-          env.gain.exponentialRampToValueAtTime(0.0001, end);
+    // TDM respawn
+    const config = game.modeConfig;
+    if (config?.tdm && config?.respawn && victim.type === "bot") {
+      // Bots respawn in TDM
+      setTimeout(() => {
+        if (!game?.running) return;
+        const pos = randomOpenSpot(game.map, game.player, 4, BOT_RADIUS);
+        victim.x = pos.x; victim.y = pos.y;
+        victim.dead = false; victim.hp = victim.maxHp;
+        victim.shotCd = 0.5;
+        addFeed(`${nameOf(victim.id)} respawned`);
+      }, 3000);
+    }
 
-          osc.connect(env);
-          env.connect(out);
-          osc.start(start);
-          osc.stop(end + 0.02);
-        },
+    if (victim.type === "player") {
+      game.rank = aliveCount() + 1;
+      endGame(false);
+    }
 
-        noiseBurst({ dur = 0.06, vol = 0.03, when = 0 }) {
-          if (!this.ready || !this.ctx || !this.enabled) {
-            return;
-          }
-          const start = this.ctx.currentTime + Math.max(0, when);
-          const length = Math.max(1, Math.floor(this.ctx.sampleRate * dur));
-          const buffer = this.ctx.createBuffer(1, length, this.ctx.sampleRate);
-          const data = buffer.getChannelData(0);
-          for (let i = 0; i < data.length; i++) {
-            data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-          }
+    // Check win conditions
+    if (!game.player.dead) {
+      if (config?.tdm) {
+        if (game.player.kills >= config.killLimit) { game.rank = 1; endGame(true); return; }
+      } else {
+        if (game.bots.every(b => b.dead)) { game.rank = 1; endGame(true); }
+      }
+    }
+  }
 
-          const src = this.ctx.createBufferSource();
-          const hp = this.ctx.createBiquadFilter();
-          const env = this.ctx.createGain();
+  function inSafeZone(ent) {
+    if (!game?.zone) return true;
+    const z = game.zone;
+    const d = Math.hypot(ent.x - z.cx, ent.y - z.cy);
+    return d <= z.radius;
+  }
 
-          hp.type = "highpass";
-          hp.frequency.setValueAtTime(1200, start);
+  function applyZoneDamage(dt) {
+    if (!game?.zone) return;
+    const entities = [game.player, ...game.bots];
+    for (const e of entities) {
+      if (e.dead) continue;
+      const d = Math.hypot(e.x - game.zone.cx, e.y - game.zone.cy);
+      if (d > game.zone.radius) {
+        const outside = d - game.zone.radius;
+        const mult = 1 + Math.min(3, outside * 0.8);
+        damageEntity(e, game.zone.damage * mult * dt, "zone");
+        if (e.id === "player") audio.playZoneWarning();
+      }
+    }
+  }
 
-          env.gain.setValueAtTime(vol, start);
-          env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  function updateZone(dt) {
+    const z = game.zone;
+    z.timer += dt;
+    if (z.timer >= z.duration) {
+      z.timer = 0;
+      z.radius = z.targetRadius;
+      z.startRadius = z.radius;
+      z.targetRadius = Math.max(2.6, z.targetRadius * 0.78);
+      const shiftMax = Math.max(0, z.radius - z.targetRadius);
+      const a = rand(0, Math.PI*2); const r = rand(0, shiftMax * 0.9);
+      z.cx = clamp(z.cx + Math.cos(a)*r, z.targetRadius+1, MAP_W-z.targetRadius-1);
+      z.cy = clamp(z.cy + Math.sin(a)*r, z.targetRadius+1, MAP_H-z.targetRadius-1);
+      z.phase += 1;
+      z.duration = Math.max(12, z.duration - 2.1);
+      z.damage = Math.min(24, 2.8 + z.phase * 1.05);
+    }
+    const t = clamp(z.timer / z.duration, 0, 1);
+    z.radius = lerp(z.startRadius, z.targetRadius, t);
+  }
 
-          src.buffer = buffer;
-          src.connect(hp);
-          hp.connect(env);
-          env.connect(this.musicBus);
-          src.start(start);
-          src.stop(start + dur + 0.02);
-        },
+  // ---- Shooting (Player) ----
+  function shootByPlayer() {
+    const p = game.player;
+    if (p.dead || p.isReloading) return;
+    const weapon = getPlayerWeapon();
+    const ammo = getPlayerAmmoState(weapon.id);
+    if (!ammo) return;
 
-        scheduleMusicStep(running, zonePhase) {
-          if (!this.ready || !this.ctx || !this.enabled) {
-            this.step = (this.step + 1) % 16;
-            return;
-          }
+    // Check if using grenade
+    if (p.usingGrenade) {
+      throwGrenade(p);
+      p.usingGrenade = false;
+      p.shotCd = 0.8;
+      return;
+    }
 
-          const now = this.ctx.currentTime + 0.02;
+    let magSize = weapon.magSize;
+    if (p.attachments?.extended_mag) magSize += ATTACHMENTS.extended_mag.bonus.magBonus;
+    if (ammo.inMag <= 0) {
+      p.shotCd = Math.max(p.shotCd, 0.08);
+      if (ammo.reserve > 0) startReload(true);
+      else if (p.dryFireCd <= 0) { addFeed(`${weapon.label} has no ammo`); p.dryFireCd=0.55; }
+      return;
+    }
 
-          if (!running) {
-            if (this.step % 8 === 0) {
-              this.tone({
-                freq: 110,
-                dur: 0.22,
-                type: "triangle",
-                vol: 0.03,
-                release: 0.2,
-                when: 0,
-                bus: "music",
-              });
+    ammo.inMag -= 1;
+    let cooldownScale = p.boost > 0 ? 0.82 : 1;
+    // Attachment: foregrip reduces fire delay
+    if (p.attachments?.foregrip) cooldownScale *= 0.95;
+    p.shotCd = weapon.fireDelay * cooldownScale;
+    game.muzzleFlash = weapon.muzzleFlash;
+    audio.playShoot(true);
+
+    let spreadScale = 1;
+    if (p.crouchBlend > 0.55) spreadScale *= 0.72;
+    if (!p.onGround) spreadScale *= 1.7;
+    if (sprintInputActive() && p.crouchBlend < 0.2) spreadScale *= 1.16;
+
+    // Apply attachment spread bonuses
+    let bonusSpread = 0;
+    if (p.attachments?.scope) bonusSpread += ATTACHMENTS.scope.bonus.spread;
+    if (p.attachments?.suppressor) bonusSpread += ATTACHMENTS.suppressor.bonus.spread;
+    if (p.attachments?.foregrip) bonusSpread += ATTACHMENTS.foregrip.bonus.spread;
+    if (p.attachments?.laser_sight) bonusSpread += ATTACHMENTS.laser_sight.bonus.spread;
+    if (p.attachments?.red_dot) bonusSpread += ATTACHMENTS.red_dot.bonus.spread;
+
+    for (let pellet=0; pellet<weapon.pellets; pellet++) {
+      const pelletSpread = (weapon.spread + bonusSpread) * spreadScale;
+      const pelletAngle = p.angle + rand(-pelletSpread, pelletSpread);
+      const ray = castRay(game.map, p.x, p.y, pelletAngle, weapon.range + (p.attachments?.scope?.range||0));
+      const wallDist = ray.dist;
+      const dirX = Math.cos(pelletAngle), dirY = Math.sin(pelletAngle);
+      let best = null, bestForward = Infinity;
+      for (const bot of game.bots) {
+        if (bot.dead) continue;
+        const relX = bot.x - p.x, relY = bot.y - p.y;
+        const forward = relX*dirX + relY*dirY;
+        if (forward <= 0 || forward > weapon.range + (p.attachments?.scope?.range||0) || forward > wallDist + 0.06) continue;
+        const lateral = Math.abs(relX*dirY - relY*dirX);
+        if (lateral > bot.r + weapon.hitPadding) continue;
+        if (!hasLineOfSight(game.map, p.x, p.y, bot.x, bot.y)) continue;
+        if (forward < bestForward) { bestForward = forward; best = bot; }
+      }
+      if (best) {
+        const falloff = clamp(1 - (bestForward / weapon.range) * weapon.dropoff, weapon.minScale, 1);
+        const damage = rand(weapon.damageMin, weapon.damageMax) * falloff;
+        damageEntity(best, damage, "player");
+      }
+    }
+    if (ammo.inMag <= 0) startReload(false);
+    updateHud();
+  }
+
+  // ---- Grenade Throwing ----
+  function throwGrenade(ent) {
+    if (!ent.grenadeType) return;
+    const gDef = GRENADES[ent.grenadeType];
+    if (!gDef) return;
+    const dirX = Math.cos(ent.angle), dirY = Math.sin(ent.angle);
+    const dist = 1.5 + rand(0, 0.5);
+    const gx = ent.x + dirX * dist, gy = ent.y + dirY * dist;
+    game.explosions.push({
+      x:gx, y:gy, type:ent.grenadeType, timer:gDef.fuse,
+      radius:gDef.radius, damage:gDef.damage, duration:gDef.duration,
+      detonated:false, age:0
+    });
+    addFeed(`${nameOf(ent.id)} threw a ${gDef.label}`);
+    audio.playGrenade();
+    if (ent.grenades) ent.grenades[ent.grenadeType] = (ent.grenades[ent.grenadeType]||0) - 1;
+    ent.grenadeType = null;
+  }
+
+  function updateExplosions(dt) {
+    if (!game?.explosions) return;
+    for (let i=game.explosions.length-1; i>=0; i--) {
+      const ex = game.explosions[i];
+      ex.timer -= dt;
+      ex.age += dt;
+      if (ex.timer <= 0 && !ex.detonated) {
+        ex.detonated = true;
+        if (ex.type === "frag") {
+          // Damage entities in radius
+          const entities = [game.player, ...game.bots];
+          for (const e of entities) {
+            if (e.dead) continue;
+            const d = Math.hypot(e.x - ex.x, e.y - ex.y);
+            if (d <= ex.radius) {
+              const falloff = 1 - (d / ex.radius);
+              damageEntity(e, ex.damage * falloff, "player");
             }
-            this.step = (this.step + 1) % 16;
-            return;
           }
-
-          const base = 92 * Math.pow(2, Math.min(10, zonePhase - 1) / 40);
-
-          if (this.step % 4 === 0) {
-            this.tone({
-              freq: base / 2,
-              dur: 0.14,
-              type: "sine",
-              vol: 0.09,
-              attack: 0.001,
-              release: 0.1,
-              when: now - this.ctx.currentTime,
-              bus: "music",
-            });
+          addFeed("💥 Frag grenade exploded!");
+        } else if (ex.type === "smoke") {
+          // Create smoke cloud
+          game.smokeEffects.push({ x:ex.x, y:ex.y, radius:ex.radius, timer:ex.duration, age:0 });
+          addFeed("💨 Smoke deployed");
+        } else if (ex.type === "flash") {
+          // Flash effect - temporarily affect nearby bots
+          for (const bot of game.bots) {
+            if (bot.dead) continue;
+            const d = Math.hypot(bot.x - ex.x, bot.y - ex.y);
+            if (d <= ex.radius) {
+              bot.flashTimer = ex.duration;
+              bot.shotCd = Math.max(bot.shotCd, ex.duration * 0.5);
+            }
           }
-
-          this.tone({
-            freq: base * Math.pow(2, melody[this.step] / 12),
-            dur: 0.16,
-            type: "triangle",
-            vol: 0.056,
-            release: 0.12,
-            when: now - this.ctx.currentTime,
-            bus: "music",
-          });
-
-          if (this.step % 4 === 2) {
-            this.noiseBurst({ dur: 0.06, vol: 0.026, when: now - this.ctx.currentTime });
+          if (Math.hypot(game.player.x - ex.x, game.player.y - ex.y) <= ex.radius) {
+            game.playerHitFlash = 0.5;
           }
-
-          this.step = (this.step + 1) % 16;
-        },
-
-        tick(dt, running, zonePhase) {
-          if (!this.ready || !this.ctx) {
-            return;
-          }
-
-          this.zonePulseCd = Math.max(0, this.zonePulseCd - dt);
-
-          const stepDur = 60 / this.tempo / 2;
-          this.seqClock += dt;
-          while (this.seqClock >= stepDur) {
-            this.seqClock -= stepDur;
-            this.scheduleMusicStep(running, zonePhase);
-          }
-
-          const target = running ? Math.min(0.24, 0.13 + zonePhase * 0.008) : 0.05;
-          this.musicTarget = target;
-          const glide = Math.min(1, dt * 3.8);
-          this.musicBus.gain.value += (this.musicTarget - this.musicBus.gain.value) * glide;
-        },
-
-        onMatchStart() {
-          this.initFromGesture();
-          this.seqClock = 0;
-          this.step = 0;
-          this.musicTarget = 0.15;
-          this.tone({ freq: 460, dur: 0.05, type: "triangle", vol: 0.08, release: 0.08 });
-          this.tone({ freq: 740, dur: 0.08, type: "triangle", vol: 0.07, when: 0.08, release: 0.09 });
-        },
-
-        onMatchEnd() {
-          this.musicTarget = 0.04;
-        },
-
-        playShoot(isPlayer) {
-          const base = isPlayer ? 530 : 420;
-          this.tone({
-            freq: base + rand(-60, 70),
-            dur: 0.045,
-            type: "square",
-            vol: isPlayer ? 0.095 : 0.05,
-            attack: 0.001,
-            release: 0.05,
-          });
-          this.tone({
-            freq: base * 0.45,
-            dur: 0.07,
-            type: "triangle",
-            vol: isPlayer ? 0.06 : 0.03,
-            attack: 0.001,
-            release: 0.06,
-          });
-        },
-
-        playEnemyHit() {
-          this.tone({ freq: 860, dur: 0.04, type: "triangle", vol: 0.07, release: 0.05 });
-        },
-
-        playPlayerHit() {
-          this.tone({ freq: 215, dur: 0.09, type: "sawtooth", vol: 0.12, release: 0.1 });
-          this.tone({ freq: 155, dur: 0.12, type: "triangle", vol: 0.08, when: 0.02, release: 0.12 });
-        },
-
-        playPickup(type) {
-          if (type === "med") {
-            this.tone({ freq: 500, dur: 0.05, type: "sine", vol: 0.08, release: 0.06 });
-            this.tone({ freq: 640, dur: 0.07, type: "sine", vol: 0.07, when: 0.06, release: 0.07 });
-          } else {
-            this.tone({ freq: 720, dur: 0.04, type: "square", vol: 0.07, release: 0.05 });
-            this.tone({ freq: 980, dur: 0.05, type: "square", vol: 0.07, when: 0.05, release: 0.06 });
-            this.tone({ freq: 1240, dur: 0.06, type: "triangle", vol: 0.06, when: 0.1, release: 0.08 });
-          }
-        },
-
-        playElimination() {
-          this.tone({ freq: 660, dur: 0.05, type: "square", vol: 0.09, release: 0.06 });
-          this.tone({ freq: 900, dur: 0.08, type: "triangle", vol: 0.08, when: 0.06, release: 0.08 });
-        },
-
-        playDeath() {
-          this.tone({ freq: 220, dur: 0.18, type: "sawtooth", vol: 0.12, release: 0.2 });
-          this.tone({ freq: 150, dur: 0.25, type: "triangle", vol: 0.1, when: 0.08, release: 0.24 });
-        },
-
-        playVictory() {
-          this.tone({ freq: 392, dur: 0.12, type: "triangle", vol: 0.11, release: 0.12 });
-          this.tone({ freq: 523, dur: 0.13, type: "triangle", vol: 0.1, when: 0.1, release: 0.13 });
-          this.tone({ freq: 659, dur: 0.18, type: "sine", vol: 0.12, when: 0.2, release: 0.2 });
-        },
-
-        playZoneWarning() {
-          if (this.zonePulseCd > 0) {
-            return;
-          }
-          this.zonePulseCd = 0.4;
-          this.tone({ freq: 180, dur: 0.12, type: "sawtooth", vol: 0.09, release: 0.12 });
-        },
-      };
-    }
-
-    const audio = createAudioEngine();
-
-    function updateAudioHud() {
-      if (!audio.supported) {
-        audioValue.textContent = "N/A";
-        audioToggle.textContent = "AUDIO NOT SUPPORTED";
-        audioToggle.disabled = true;
-        return;
-      }
-      audioValue.textContent = audio.enabled ? "ON" : "OFF";
-      audioToggle.textContent = audio.enabled ? "MUTE (M)" : "UNMUTE (M)";
-      audioToggle.classList.toggle("muted", !audio.enabled);
-    }
-
-    function getWeaponConfig(id) {
-      return WEAPONS[id] || WEAPONS.pistol;
-    }
-
-    function getPlayerWeapon() {
-      if (!game || !game.player) {
-        return WEAPONS.pistol;
-      }
-      return getWeaponConfig(game.player.weaponId);
-    }
-
-    function createInitialAmmoState() {
-      const ammo = {};
-      for (const id of WEAPON_ORDER) {
-        const w = getWeaponConfig(id);
-        ammo[id] = {
-          inMag: w.magSize,
-          reserve: w.reserveStart,
-        };
-      }
-      return ammo;
-    }
-
-    function getPlayerAmmoState(weaponId = null) {
-      if (!game || !game.player) {
-        return null;
-      }
-      const id = weaponId || game.player.weaponId;
-      return game.player.ammo[id] || null;
-    }
-
-    function finishReload() {
-      if (!game || !game.player) {
-        return;
-      }
-      const p = game.player;
-      if (!p.isReloading) {
-        return;
-      }
-
-      const weapon = getPlayerWeapon();
-      const ammo = getPlayerAmmoState(weapon.id);
-      if (ammo) {
-        const needed = Math.max(0, weapon.magSize - ammo.inMag);
-        const loaded = Math.min(needed, ammo.reserve);
-        ammo.inMag += loaded;
-        ammo.reserve -= loaded;
-      }
-
-      p.isReloading = false;
-      p.reloadTimer = 0;
-      p.reloadDuration = 0;
-      updateHud();
-    }
-
-    function startReload(manual = false) {
-      if (!game || !game.running || !game.player || game.player.dead) {
-        return false;
-      }
-
-      const p = game.player;
-      if (p.isReloading) {
-        return false;
-      }
-
-      const weapon = getPlayerWeapon();
-      const ammo = getPlayerAmmoState(weapon.id);
-      if (!ammo) {
-        return false;
-      }
-
-      if (ammo.inMag >= weapon.magSize) {
-        return false;
-      }
-
-      if (ammo.reserve <= 0) {
-        if (manual && p.dryFireCd <= 0) {
-          addFeed(`${weapon.label} is out of ammo`);
-          p.dryFireCd = 0.55;
+          addFeed("⚡ Flashbang!");
+        } else if (ex.type === "molotov") {
+          // Fire area damage over time
+          game.smokeEffects.push({ x:ex.x, y:ex.y, radius:ex.radius, timer:ex.duration, age:0, fire:true });
+          addFeed("🔥 Molotov burning!");
         }
-        return false;
       }
-
-      p.isReloading = true;
-      p.reloadTimer = weapon.reloadTime;
-      p.reloadDuration = weapon.reloadTime;
-      p.shotCd = Math.max(p.shotCd, 0.12);
-      addFeed(`Reloading ${weapon.label}...`);
-      updateHud();
-      return true;
-    }
-
-    function setPlayerWeaponByIndex(index, silent = false) {
-      if (!game || !game.player) {
-        return;
-      }
-
-      const len = WEAPON_ORDER.length;
-      const idx = ((index % len) + len) % len;
-      const nextId = WEAPON_ORDER[idx];
-      if (game.player.weaponId === nextId) {
-        return;
-      }
-
-      if (game.player.isReloading) {
-        game.player.isReloading = false;
-        game.player.reloadTimer = 0;
-        game.player.reloadDuration = 0;
-      }
-
-      game.player.weaponId = nextId;
-      if (!silent && game.running && !game.player.dead) {
-        addFeed(`Weapon switched to ${WEAPONS[nextId].label}`);
-      }
-      updateHud();
-    }
-
-    function cyclePlayerWeapon(direction) {
-      if (!game || !game.player) {
-        return;
-      }
-      const currentIndex = WEAPON_ORDER.indexOf(game.player.weaponId);
-      const baseIndex = currentIndex < 0 ? 0 : currentIndex;
-      setPlayerWeaponByIndex(baseIndex + direction);
-    }
-
-    function sprintInputActive() {
-      return Boolean(keys.shift || (touchInput.enabled && touchInput.sprint));
-    }
-
-    function setTouchMoveVector(x, y) {
-      touchInput.moveX = clamp(x, -1, 1);
-      touchInput.moveY = clamp(y, -1, 1);
-      touchInput.sprint = Math.hypot(touchInput.moveX, touchInput.moveY) > 0.84;
-
-      if (touchMovePad) {
-        touchMovePad.classList.toggle("active", Math.abs(touchInput.moveX) > 0.01 || Math.abs(touchInput.moveY) > 0.01);
-      }
-      if (touchStick && touchMovePad) {
-        const range = Math.max(14, touchMovePad.clientWidth * 0.19);
-        touchStick.style.transform = `translate(${(touchInput.moveX * range).toFixed(1)}px, ${(touchInput.moveY * range).toFixed(1)}px)`;
+      if (ex.detonated && ex.age > (ex.duration || 0.5) + 0.3) {
+        game.explosions.splice(i,1);
       }
     }
-
-    function clearTouchState() {
-      touchInput.moveId = null;
-      touchInput.lookId = null;
-      touchInput.fireId = null;
-      touchInput.crouchId = null;
-      touchInput.lookDX = 0;
-      touchInput.lookLastX = 0;
-      touchInput.lookLastY = 0;
-      touchInput.shooting = false;
-      touchInput.crouching = false;
-      setTouchMoveVector(0, 0);
-      if (touchFireBtn) {
-        touchFireBtn.classList.remove("active");
-      }
-      if (touchCrouchBtn) {
-        touchCrouchBtn.classList.remove("active");
-      }
+    // Update smoke effects
+    for (let i=game.smokeEffects.length-1; i>=0; i--) {
+      const s = game.smokeEffects[i];
+      s.age += dt;
+      if (s.age >= s.timer) game.smokeEffects.splice(i,1);
     }
+  }
 
-    function pulseTouchButton(btn) {
-      if (!btn) {
-        return;
-      }
-      btn.classList.add("active");
-      window.setTimeout(() => {
-        btn.classList.remove("active");
-      }, 110);
+  // ---- Vehicle System ----
+  function enterVehicle(entity, vehicle) {
+    if (vehicle.occupied) return;
+    vehicle.occupied = entity.id;
+    entity.vehicle = vehicle;
+    entity.x = vehicle.x;
+    entity.y = vehicle.y;
+    addFeed(`${nameOf(entity.id)} entered ${vehicle.label}`);
+    vehicleHud.classList.add("open");
+    updateVehicleHud();
+    audio.playVehicle();
+  }
+
+  function exitVehicle(entity) {
+    if (!entity.vehicle) return;
+    const v = entity.vehicle;
+    v.occupied = null;
+    entity.vehicle = null;
+    entity.x = v.x + rand(-0.5,0.5);
+    entity.y = v.y + rand(-0.5,0.5);
+    addFeed(`${nameOf(entity.id)} exited ${v.label}`);
+    vehicleHud.classList.remove("open");
+  }
+
+  function updateVehicleHud() {
+    const v = game?.player?.vehicle;
+    if (!v) { vehicleHud.classList.remove("open"); return; }
+    document.getElementById("vName").textContent = `${v.icon} ${v.label}`;
+    document.getElementById("vSpeed").textContent = `Speed: ${Math.round(Math.abs(v.speed)*20)} km/h`;
+    document.getElementById("vFuel").textContent = `Fuel: ${Math.round(v.fuel)}%`;
+    document.getElementById("vHealth").textContent = `Health: ${Math.round(v.health)}%`;
+  }
+
+  function updateVehicles(dt) {
+    if (!game?.vehicles) return;
+    for (const v of game.vehicles) {
+      if (v.occupied) continue; // Occupant moves it
+      // Idle vehicles don't move
+      v.speed = 0;
+      // Random roaming for nearby vehicles
     }
+    // Player vehicle
+    const p = game.player;
+    if (p.vehicle && !p.dead) {
+      const v = p.vehicle;
+      // Fuel consumption
+      v.fuel = Math.max(0, v.fuel - v.fuelRate * dt);
+      // Movement
+      const fwd = (keys.w?1:0) - (keys.s?1:0) - touchInput.moveY;
+      const strafe = (keys.d?1:0) - (keys.a?1:0) + touchInput.moveX;
+      if (fwd > 0 && v.fuel > 0) {
+        v.speed = lerp(v.speed, v.speed * 0.5, dt);
+        v.speed = Math.min(v.speed + dt * 2, v.speed);
+        const boost = sprintInputActive() && v.fuel > 10 ? v.boost : 1;
+        const mv = boost * v.speed * dt;
+        const cos = Math.cos(p.angle), sin = Math.sin(p.angle);
+        moveEntity(v, cos * mv, sin * mv, 1, 0.5);
+        if (boost > 1) v.fuel -= 0.2;
+        p.x = v.x; p.y = v.y;
+      } else {
+        v.speed = lerp(v.speed, 0, dt * 3);
+      }
+      // Steering
+      if (Math.abs(v.speed) > 0.2) {
+        const turnRate = 1.5 * dt * clamp(Math.abs(v.speed), 0.5, 1.5);
+        if (keys.a || touchInput.moveX < -0.3) p.angle -= turnRate;
+        if (keys.d || touchInput.moveX > 0.3) p.angle += turnRate;
+      }
+      v.x = p.x; v.y = p.y;
+      v.health = Math.max(0, v.health - (p.hitFlash > 0 ? dt*2 : 0));
+      updateVehicleHud();
+    }
+  }
 
-    function setupTouchControls() {
-      const touchCapable =
-        Boolean(window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
-        (navigator.maxTouchPoints || 0) > 0 ||
-        "ontouchstart" in window;
+  // ---- Bot AI (Enhanced) ----
+  function chooseBotTarget(bot) {
+    let best = null, bestD = Infinity;
+    if (!game.player.dead) {
+      const d = dist(bot, game.player);
+      best = game.player; bestD = d;
+    }
+    for (const other of game.bots) {
+      if (other.dead || other.id === bot.id) continue;
+      const d = dist(bot, other);
+      if (d < bestD) { best = other; bestD = d; }
+    }
+    if (best && bestD <= 14) return best;
+    return null;
+  }
 
-      touchInput.enabled = touchCapable;
-      document.body.classList.toggle("touch-enabled", touchInput.enabled);
-      if (!touchInput.enabled || !touchUi || !touchMovePad || !touchStick || !touchLookZone) {
-        clearTouchState();
-        return;
+  function updateBot(bot, dt) {
+    if (bot.dead) return;
+
+    bot.hitFlash = Math.max(0, bot.hitFlash - dt);
+    bot.boost = Math.max(0, bot.boost - dt);
+    bot.shotCd = Math.max(0, bot.shotCd - dt);
+    bot.thinkCd -= dt;
+    bot.flashTimer = Math.max(0, (bot.flashTimer||0) - dt);
+
+    // Bot AI states: patrol, loot, combat, flee, heal
+    bot.aiTimer -= dt;
+
+    if (bot.thinkCd <= 0) {
+      bot.thinkCd = rand(0.15, 0.35);
+      const target = chooseBotTarget(bot);
+
+      // Heal if low health
+      if (bot.hp < 40 && bot.healingItems?.med_kit > 0 && !bot.isInCombat) {
+        bot.aiState = "heal";
+        bot.hp = Math.min(bot.maxHp, bot.hp + 60);
+        bot.healingItems.med_kit -= 1;
+        addFeed(`${nameOf(bot.id)} used a med kit`);
+        bot.aiTimer = 1;
       }
 
-      const getMoveVector = (clientX, clientY) => {
-        const rect = touchMovePad.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const dx = clientX - cx;
-        const dy = clientY - cy;
-        const radius = Math.max(28, Math.min(rect.width, rect.height) * 0.34);
-        const d = Math.hypot(dx, dy);
-        if (d < 0.001) {
-          return { x: 0, y: 0 };
+      // Check for target
+      if (target && hasLineOfSight(game.map, bot.x, bot.y, target.x, target.y)) {
+        bot.targetId = target.id;
+        bot.aiState = "combat";
+      } else if (target && Math.random() < 0.7) {
+        bot.targetId = target.id;
+        bot.aiState = "combat";
+      } else {
+        bot.targetId = null;
+        // Random patrol or loot
+        if (Math.random() < 0.3) {
+          bot.aiState = "loot";
+          // Move toward nearest pickup
+          let nearest = null, nearD = Infinity;
+          for (const p of game.pickups) {
+            const d = Math.hypot(bot.x - p.x, bot.y - p.y);
+            if (d < nearD) { nearD = d; nearest = p; }
+          }
+          if (nearest && nearD < 8) { bot.roamX = nearest.x; bot.roamY = nearest.y; }
+          else { const r = randomOpenSpot(game.map, bot, 0, bot.r); bot.roamX = r.x; bot.roamY = r.y; }
+        } else {
+          bot.aiState = "patrol";
+          const r = randomOpenSpot(game.map, bot, 0, bot.r);
+          bot.roamX = r.x; bot.roamY = r.y;
         }
-        const m = Math.min(1, d / radius);
-        return {
-          x: (dx / d) * m,
-          y: (dy / d) * m,
-        };
-      };
+      }
+    }
 
-      const handleMoveDown = (e) => {
-        if (touchInput.moveId !== null) {
-          return;
+    let target = getEntityById(bot.targetId);
+    if (target && target.dead) { target = null; bot.targetId = null; }
+
+    // Combat behavior - take cover
+    if (bot.aiState === "combat" && target && bot.aiTimer <= 0) {
+      bot.aiTimer = rand(0.5, 1.5);
+      if (Math.random() < 0.25) {
+        // Take cover - move sideways
+        bot.aiCoverPos = { x: bot.x + rand(-2,2), y: bot.y + rand(-2,2) };
+      }
+    }
+
+    let vx = 0, vy = 0;
+
+    if (target && bot.aiState === "combat") {
+      const dx = target.x - bot.x, dy = target.y - bot.y;
+      const d = Math.hypot(dx, dy) || 1;
+      bot.angle = Math.atan2(dy, dx);
+
+      if (bot.aiCoverPos && dist(bot, bot.aiCoverPos) > 0.5) {
+        const cdx = bot.aiCoverPos.x - bot.x, cdy = bot.aiCoverPos.y - bot.y;
+        const cd = Math.hypot(cdx, cdy) || 1;
+        vx = cdx/cd; vy = cdy/cd;
+      } else if (d > 4.5) {
+        vx = dx/d; vy = dy/d;
+      } else if (d < 2.5) {
+        vx = -dx/d; vy = -dy/d;
+      } else {
+        const side = Math.sin(game.t*2.2+bot.strafeSeed)>0?1:-1;
+        vx = (-dy/d)*side*0.9 + (dx/d)*0.25;
+        vy = (dx/d)*side*0.9 + (dy/d)*0.25;
+      }
+
+      // Shooting
+      if (d < 10 && bot.shotCd <= 0 && !bot.flashTimer && hasLineOfSight(game.map, bot.x, bot.y, target.x, target.y)) {
+        bot.shotCd = bot.boost > 0 ? bot.baseDelay * 0.72 : bot.baseDelay;
+        const bWeapon = getBotWeaponConfig(bot);
+        damageEntity(target, rand(bWeapon.damageMin*0.6, bWeapon.damageMax*0.6), bot.id);
+        if (target.id === "player" || dist(bot, game.player) < 8.2) audio.playShoot(false);
+
+        // Bot can throw grenade
+        if (bot.grenades?.frag > 0 && Math.random() < 0.05 && d < 6) {
+          bot.grenadeType = "frag"; bot.usingGrenade = true;
+          bot.grenades.frag -= 1;
+          throwGrenade(bot);
         }
-        touchInput.moveId = e.pointerId;
-        touchMovePad.setPointerCapture?.(e.pointerId);
-        const v = getMoveVector(e.clientX, e.clientY);
-        setTouchMoveVector(v.x, v.y);
-        e.preventDefault();
-      };
+      }
 
-      const handleMoveMove = (e) => {
-        if (e.pointerId !== touchInput.moveId) {
+      // Flee if low health
+      if (bot.hp < 20 && Math.random() < 0.02) {
+        bot.aiState = "flee";
+        const r = randomOpenSpot(game.map, bot, 6, bot.r);
+        bot.roamX = r.x; bot.roamY = r.y;
+      }
           return;
         }
         const v = getMoveVector(e.clientX, e.clientY);
