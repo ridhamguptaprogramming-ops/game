@@ -1541,146 +1541,146 @@
       case "weapon":
         const wid = WEAPON_ORDER[randInt(0, WEAPON_ORDER.length-1)];
         item.subtype = `weapon_${wid}`; item.r = 0.2;
-          tctx.moveTo(0, y + 0.5);
-          tctx.lineTo(s, y + 0.5);
-          tctx.stroke();
-        }
-
-        tctx.lineWidth = 1.6;
-        for (let y = 0; y < s; y += rowH) {
-          const offset = ((y / rowH) % 2) * (rowH / 2);
-          for (let x = -offset; x <= s; x += rowH) {
-            tctx.beginPath();
-            tctx.moveTo(x + 0.5, y);
-            tctx.lineTo(x + 0.5, y + rowH);
-            tctx.stroke();
-          }
-        }
-        addTextureGrain(tctx, s, 10);
-      });
-
-      const metal = make((tctx, s) => {
-        const g = tctx.createLinearGradient(0, 0, s, s);
-        g.addColorStop(0, "#6f8898");
-        g.addColorStop(0.55, "#4b6272");
-        g.addColorStop(1, "#354a59");
-        tctx.fillStyle = g;
-        tctx.fillRect(0, 0, s, s);
-
-        tctx.strokeStyle = "rgba(26, 40, 52, 0.7)";
-        tctx.lineWidth = 2;
-        for (let x = 0; x <= s; x += 16) {
-          tctx.beginPath();
-          tctx.moveTo(x + 0.5, 0);
-          tctx.lineTo(x + 0.5, s);
-          tctx.stroke();
-        }
-
-        tctx.strokeStyle = "rgba(207, 234, 255, 0.14)";
-        tctx.lineWidth = 1;
-        for (let y = 0; y <= s; y += 8) {
-          tctx.beginPath();
-          tctx.moveTo(0, y + 0.5);
-          tctx.lineTo(s, y + 0.5);
-          tctx.stroke();
-        }
-
-        for (let y = 6; y < s; y += 12) {
-          for (let x = 6; x < s; x += 16) {
-            tctx.beginPath();
-            tctx.arc(x, y, 1.3, 0, Math.PI * 2);
-            tctx.fillStyle = "rgba(227, 243, 255, 0.26)";
-            tctx.fill();
-          }
-        }
-        addTextureGrain(tctx, s, 12);
-      });
-
-      const moss = make((tctx, s) => {
-        const g = tctx.createLinearGradient(0, 0, 0, s);
-        g.addColorStop(0, "#5c7458");
-        g.addColorStop(0.45, "#476648");
-        g.addColorStop(1, "#2f4832");
-        tctx.fillStyle = g;
-        tctx.fillRect(0, 0, s, s);
-
-        tctx.strokeStyle = "rgba(25, 41, 28, 0.62)";
-        tctx.lineWidth = 2;
-        for (let y = 0; y <= s; y += 12) {
-          tctx.beginPath();
-          tctx.moveTo(0, y + 0.5);
-          tctx.lineTo(s, y + 0.5);
-          tctx.stroke();
-        }
-        for (let x = 0; x <= s; x += 12) {
-          tctx.beginPath();
-          tctx.moveTo(x + 0.5, 0);
-          tctx.lineTo(x + 0.5, s);
-          tctx.stroke();
-        }
-
-        for (let i = 0; i < 55; i++) {
-          const r = rand(1.1, 3.4);
-          tctx.beginPath();
-          tctx.arc(rand(0, s), rand(0, s), r, 0, Math.PI * 2);
-          tctx.fillStyle = `rgba(${randInt(80, 130)}, ${randInt(120, 186)}, ${randInt(66, 110)}, ${rand(0.14, 0.34)})`;
-          tctx.fill();
-        }
-        addTextureGrain(tctx, s, 14);
-      });
-
-      return {
-        1: brick,
-        2: metal,
-        3: moss,
-      };
+        break;
+      case "grenade":
+        const gids = Object.keys(GRENADES);
+        item.subtype = `grenade_${gids[randInt(0,gids.length-1)]}`;
+        break;
+      case "attachment":
+        const aids = Object.keys(ATTACHMENTS);
+        item.subtype = `attachment_${aids[randInt(0,aids.length-1)]}`;
+        break;
     }
+    return item;
+  }
 
-    const WALL_TEXTURES = createWallTextures();
+  // ---- Game Mode config ----
+  const MODE_CONFIG = {
+    solo:     { label:"Solo", botCount:22, teamSize:1, tdm:false, respawn:false },
+    duo:      { label:"Duo", botCount:20, teamSize:2, tdm:false, respawn:false },
+    squad:    { label:"Squad", botCount:18, teamSize:4, tdm:false, respawn:false },
+    tdm:      { label:"TDM", botCount:14, teamSize:2, tdm:true, respawn:true, killLimit:30 },
+    practice: { label:"Practice", botCount:10, teamSize:1, tdm:false, respawn:false }
+  };
 
-    function nameOf(id) {
-      if (id === "player") {
-        return "You";
-      }
-      if (id === "zone") {
-        return "Zone";
-      }
-      if (!id) {
-        return "Unknown";
-      }
-      return `Bot ${id.split("-")[1]}`;
+  // ---- Entity Creation ----
+  function createPlayer(map, name) {
+    const spawn = randomOpenSpot(map, {x:MAP_W/2,y:MAP_H/2}, 0, PLAYER_RADIUS);
+    return {
+      id:"player", type:"player", name: name || "Player",
+      x:spawn.x, y:spawn.y, angle:rand(-Math.PI,Math.PI), r:PLAYER_RADIUS,
+      hp:100, maxHp:100, speed:3.3, shotCd:0, dead:false,
+      boost:0, maxBoost:13, kills:0, hitFlash:0,
+      weaponId:"pistol", ammo: createInitialAmmoState(),
+      isReloading:false, reloadTimer:0, reloadDuration:0,
+      crouching:false, crouchBlend:0, jumpY:0, jumpVel:0, onGround:true, dryFireCd:0,
+      // Inventory
+      armor:0, armorHp:0, backpack:0,
+      healingItems: { med_kit:2, bandage:5, energy_drink:3, first_aid:1 },
+      grenades: { frag:2, smoke:1, flash:0, molotov:0 },
+      attachments: {},
+      weaponUnlocks: { pistol:true, shotgun:false, sniper:false, assault_rifle:false, smg:false },
+      // Vehicle
+      vehicle: null,
+      // XP/Stats
+      xp:0, level:1, wins:0, matches:0
+    };
+  }
+
+  function createBot(index, map, player, mode) {
+    const spawn = randomOpenSpot(map, player, 6.8, BOT_RADIUS);
+    const bot = {
+      id:`bot-${index+1}`, type:"bot",
+      x:spawn.x, y:spawn.y, angle:rand(-Math.PI,Math.PI), r:BOT_RADIUS,
+      hp:100, maxHp:100, speed:rand(1.75,2.25),
+      dead:false, shotCd:rand(0.2,0.8), thinkCd:rand(0.1,0.5), baseDelay:rand(0.55,0.9),
+      targetId:null, roamX:spawn.x, roamY:spawn.y, strafeSeed:rand(0,Math.PI*2),
+      boost:0, kills:0, hitFlash:0,
+      // AI enhancements
+      aiState:"patrol", aiTimer:0, aiCoverPos:null,
+      armor:0, armorHp:0,
+      // Bot weapon
+      weaponId: WEAPON_ORDER[randInt(0, WEAPON_ORDER.length-1)],
+      ammo: createInitialAmmoState(),
+      isReloading:false, reloadTimer:0, reloadDuration:0,
+      healingItems: { med_kit:randInt(0,1), bandage:randInt(1,3), energy_drink:randInt(0,1) },
+      grenades: { frag:randInt(0,1), smoke:randInt(0,1) },
+      // Vehicle handling
+      vehicle: null,
+      botGroup: mode?.teamSize > 1 ? index % mode.teamSize : index
+    };
+    // Bots have random weapons
+    const weaponPick = WEAPON_ORDER[randInt(0, WEAPON_ORDER.length-1)];
+    bot.weaponId = weaponPick;
+    return bot;
+  }
+
+  // ---- Vehicle Creation ----
+  function createVehicles(map) {
+    const vehicles = [];
+    const types = Object.keys(VEHICLES);
+    const count = randInt(6, 10);
+    for (let i=0; i<count; i++) {
+      const pos = randomOpenSpot(map, null, 0, 0.5);
+      const type = types[randInt(0, types.length-1)];
+      const def = VEHICLES[type];
+      vehicles.push({
+        id:`veh-${i}`, type, ...def,
+        x:pos.x, y:pos.y, angle:rand(0,Math.PI*2),
+        fuel:def.maxFuel, health:def.health, maxHealth:def.health,
+        speed:0, occupied:null, honkTimer:0
+      });
     }
+    return vehicles;
+  }
 
-    function resize() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
+  // ---- Zone ----
+  function createZone() {
+    return {
+      cx: MAP_W/2, cy: MAP_H/2, radius: 15.2,
+      startRadius: 15.2, targetRadius: 11.6,
+      phase: 1, timer: 0, duration: 34, damage: 3.0
+    };
+  }
 
-    function createAudioEngine() {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const melody = [0, 3, 5, 7, 8, 7, 5, 3, 0, 3, 7, 5, 8, 10, 12, 7];
+  // ---- Init Game ----
+  function initGame(modeId) {
+    const config = MODE_CONFIG[modeId] || MODE_CONFIG.solo;
+    const map = generateMap();
+    const player = createPlayer(map, playerNameInput.value || "Player");
+    player.mode = modeId;
 
-      return {
-        supported: Boolean(AudioCtx),
-        ctx: null,
-        master: null,
-        sfxBus: null,
-        musicBus: null,
-        enabled: true,
-        ready: false,
-        tempo: 102,
-        seqClock: 0,
-        step: 0,
-        musicTarget: 0.15,
-        zonePulseCd: 0,
+    const botCount = config.botCount;
+    const bots = [];
+    for (let i=0; i<botCount; i++) bots.push(createBot(i, map, player, config));
 
-        ensureContext() {
-          if (!AudioCtx) {
-            return false;
-          }
-          if (!this.ctx) {
-            this.ctx = new AudioCtx();
-            this.master = this.ctx.createGain();
+    // Generate pickups
+    const pickups = [];
+    for (let i=0; i<PICKUP_COUNT; i++) pickups.push(generateLootDrop(map));
+
+    // Create vehicles
+    const vehicles = createVehicles(map);
+
+    game = {
+      map, player, bots, pickups, vehicles,
+      zone: createZone(),
+      running: true, finished: false, victory: false, mode: modeId,
+      feed: [], rank: botCount + 1, t: 0,
+      muzzleFlash: 0, zBuffer: new Float32Array(1),
+      matchTime: 0, modeConfig: config,
+      // TDM specific
+      teamScores: { team1:0, team2:0 },
+      // Smoke effects
+      smokeEffects: [],
+      // Explosions
+      explosions: []
+    };
+
+    matchTimer = 0;
+    addFeed(`Match started - ${config.label} mode. Stay inside the zone.`);
+    updateHud();
+  }
+
             this.master.gain.value = 0.0001;
             this.master.connect(this.ctx.destination);
 
