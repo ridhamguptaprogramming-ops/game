@@ -1681,42 +1681,42 @@
     updateHud();
   }
 
-            this.master.gain.value = 0.0001;
-            this.master.connect(this.ctx.destination);
+  // ---- Feed ----
+  function addFeed(text) {
+    if (!game) return;
+    game.feed.unshift({text, ttl:6.2});
+    if (game.feed.length > 8) game.feed.length = 8;
+    renderFeed();
+  }
+  function renderFeed() {
+    if (!game?.feed.length) { feedEl.innerHTML = '<div class="line">No eliminations yet.</div>'; return; }
+    feedEl.innerHTML = game.feed.map(item => {
+      const alpha = clamp(item.ttl/6.2, 0.3, 1);
+      return `<div class="line" style="--line-alpha:${alpha.toFixed(2)}">${item.text}</div>`;
+    }).join("");
+  }
 
-            this.musicBus = this.ctx.createGain();
-            this.musicBus.gain.value = 0.01;
-            this.musicBus.connect(this.master);
+  function aliveCount() {
+    if (!game) return 0;
+    let count = game.player.dead ? 0 : 1;
+    for (const bot of game.bots) if (!bot.dead) count++;
+    return count;
+  }
 
-            this.sfxBus = this.ctx.createGain();
-            this.sfxBus.gain.value = 0.92;
-            this.sfxBus.connect(this.master);
-          }
-          return true;
-        },
+  function getEntityById(id) {
+    if (!game) return null;
+    if (id === "player") return game.player;
+    if (!id || id === "zone") return null;
+    return game.bots.find(b => b.id === id) || null;
+  }
 
-        initFromGesture() {
-          if (!this.ensureContext()) {
-            return;
-          }
-          this.ready = true;
-          if (this.ctx.state === "suspended") {
-            this.ctx.resume();
-          }
-          const now = this.ctx.currentTime;
-          this.master.gain.cancelScheduledValues(now);
-          this.master.gain.linearRampToValueAtTime(this.enabled ? 0.86 : 0.0001, now + 0.08);
-        },
+  function getBotWeaponConfig(bot) { return getWeaponConfig(bot.weaponId); }
 
-        setEnabled(flag) {
-          this.enabled = flag;
-          if (!this.ensureContext()) {
-            return;
-          }
-          const now = this.ctx.currentTime;
-          this.master.gain.cancelScheduledValues(now);
-          this.master.gain.linearRampToValueAtTime(this.enabled ? 0.86 : 0.0001, now + 0.06);
-        },
+  // ---- Damage & Kill (with armor) ----
+  function applyArmorDmg(entity, rawDamage) {
+    const armorLv = entity.armor || 0;
+    const armorDef = ARMOR_LEVELS[armorLv] || ARMOR_LEVELS[0];
+    if (armorLv > 0 && entity.armorHp > 0) {
 
         toggle() {
           this.initFromGesture();
